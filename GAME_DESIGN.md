@@ -5,37 +5,61 @@ MyHoMM is a 2D grid-based strategy game inspired by Heroes of Might and Magic. P
 
 ## Core Concept
 - **Genre**: Real-time strategy
-- **Platform**: Cross-platform (Windows, Linux, macOS)
-- **Technology**: C# with cross-platform framework
-- **Map**: 2D grid-based world
-- **Starting Setup**: 3 castles on the map
+- **Platform**: Cross-platform HTML5 (desktop and mobile)
+- **Technology**: JavaScript with HTML5 Canvas
+- **Map**: 2D grid-based world (20x15)
+- **Starting Setup**: 3 castles controlled by 1 human player and 2 AI players
 
 ## Game Mechanics
 
 ### Castle System
 - **Base Functionality**: Each castle serves as a production center and stronghold
-- **Unit Generation**: Castles automatically produce units continuously while the game runs
-  - Base production rate: 1 unit per second (configurable)
-  - Unit count increases automatically based on real-time, not turns
-  - Production can be upgraded through castle improvements
-  - Different castle types may produce different unit types
+- **Unit Generation**: Castles automatically produce multiple unit types continuously
+  - **Infantry**: 3 gold cost, 1 second production time (basic units)
+  - **Archers**: 4 gold cost, 2 second production time (ranged units)
+  - **Cavalry**: 6 gold cost, 3 second production time (fast units)
+  - Production rates can be upgraded through castle improvements
+- **Gold Production**: Each castle generates 2 gold per second for its owner
+- **Upgrade System**: Castles can be upgraded to improve production, defense, and capacity
+  - **Production Upgrade**: Increases unit production speed by 20% per level
+  - **Defense Upgrade**: Adds 10% defensive bonus per level
+  - **Capacity Upgrade**: Increases maximum unit storage by 100 per level
 
 ### Army & Unit Management
-- **Army System**: An army is a single entity that moves on the map and contains multiple units
-- **Unit Count**: Each army has a numerical strength value representing the number of units it contains
-- **Movement**: Armies move across the grid from castle to castle (not individual units)
-- **Combat Resolution**: Simple numerical comparison
-  - Attacking army vs Defending army
-  - Higher number wins
-  - Winner keeps (Winner Count - Loser Count) units
-  - Loser is eliminated
+- **Army System**: Armies contain mixed unit types with different capabilities
+  - **Unit Composition**: Each army tracks infantry, archers, and cavalry separately
+  - **Combat Effectiveness**: Unit types affect overall army combat power
+  - **Experience System**: Armies gain experience and veteran levels through battles
+  - **Morale & Supply**: Army effectiveness affected by morale and supply levels
+- **Movement**: Armies move smoothly across the grid with interpolated animation
+- **Combat Resolution**: Enhanced combat system with multiple factors
+  - Base unit strength modified by morale, experience, and unit composition
+  - Defensive bonuses for castles and terrain
+  - Winners gain experience, losers may be eliminated or retreat
+
+### AI Player System
+- **Multiple Difficulties**: Easy, Medium, and Hard AI opponents
+- **Personality Types**: Each AI has distinct behavior patterns
+  - **Aggressive AI**: High aggressiveness (90%), low economic focus (20%)
+  - **Defensive AI**: Low aggressiveness (30%), high economic focus (60%)
+  - **Economic AI**: Focuses on resource accumulation and castle upgrades
+- **Strategic Decision Making**: AI evaluates threats, opportunities, and resource management
+- **Adaptive Behavior**: AI changes strategies based on game situation
+
+### Resource Management
+- **Gold Economy**: Primary resource for unit production and upgrades
+  - Players start with 100 gold
+  - Castles generate 2 gold per second
+  - Units cost gold to produce (3-6 gold per unit)
+  - Upgrades require increasing amounts of gold
+- **Player Elimination**: When a player loses all castles, their armies are automatically removed
 
 ### Map & Movement
-- **Grid System**: 2D tile-based map
+- **Grid System**: 2D tile-based map (20x15 tiles)
 - **Movement Rules**: 
-  - Armies move one tile at a time on player command
-  - Movement is instant/immediate when commanded
-  - Only one army per tile (or allow stacking)
+  - Armies move smoothly with animated interpolation
+  - Real-time movement system with progress tracking
+  - Multiple armies can occupy the same tile briefly during movement
 
 ## Technical Implementation Plan
 

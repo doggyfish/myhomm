@@ -26,9 +26,9 @@ class Player {
             castlesLost: 0
         };
         
-        // Player resources (for future resource system)
+        // Player resources (active resource system)
         this.resources = {
-            gold: 100,
+            gold: 100, // Starting gold for unit production
             goldPerSecond: 0
         };
         

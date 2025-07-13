@@ -17,8 +17,7 @@ class Castle {
         this.owner = owner;
         this.selected = false;
         
-        // Units
-        this.unitCount = 10;
+        // Units (legacy property for compatibility)
         this.maxUnitCount = 999; // Maximum units castle can hold
         
         // Production
@@ -35,14 +34,60 @@ class Castle {
             capacity: 0     // Max unit capacity bonus
         };
         
-        // Resources (for future resource system)
+        // Resources (active resource system)
         this.goldProduction = 2; // Gold per second
         this.constructionQueue = []; // For future building queue
+        this.lastGoldTime = Date.now(); // Track gold production
+        
+        // Unit type system
+        this.unitTypes = {
+            infantry: {
+                cost: 3,
+                productionTime: 1000, // 1 second
+                lastProduced: Date.now(),
+                count: 10 // Starting infantry
+            },
+            cavalry: {
+                cost: 6,
+                productionTime: 3000, // 3 seconds
+                lastProduced: Date.now(),
+                count: 0
+            },
+            archers: {
+                cost: 4,
+                productionTime: 2000, // 2 seconds
+                lastProduced: Date.now(),
+                count: 0
+            }
+        };
+        
+        // Current production queue cycle
+        this.productionCycle = ['infantry', 'archers', 'cavalry'];
+        this.currentProductionIndex = 0;
         
         // Visual properties
         this.type = 'basic'; // For different castle types
         this.health = 100;   // For siege mechanics
         this.defenseBonus = 0; // Defensive advantage
+    }
+    
+    /**
+     * Legacy compatibility: Get total unit count
+     * @returns {number} Total units in castle
+     */
+    get unitCount() {
+        return this.getTotalUnits();
+    }
+    
+    /**
+     * Legacy compatibility: Set unit count (distributes to infantry)
+     * @param {number} count - New unit count
+     */
+    set unitCount(count) {
+        // For compatibility, set infantry count
+        if (this.unitTypes && this.unitTypes.infantry) {
+            this.unitTypes.infantry.count = Math.max(0, count);
+        }
     }
     
     /**
@@ -53,29 +98,77 @@ class Castle {
     updateProduction(currentTime) {
         if (!this.isProducing) return false;
         
-        const timeSinceLastProduction = currentTime - this.lastProductionTime;
-        const actualInterval = this.productionInterval / this.getProductionMultiplier();
+        // Update gold production
+        this.updateGoldProduction(currentTime);
         
-        if (timeSinceLastProduction >= actualInterval && this.unitCount < this.maxUnitCount) {
-            this.produceUnit();
-            this.lastProductionTime = currentTime;
-            return true;
-        }
-        return false;
+        let unitProduced = false;
+        
+        // Check each unit type for production
+        Object.keys(this.unitTypes).forEach(unitType => {
+            if (this.checkUnitTypeProduction(unitType, currentTime)) {
+                this.produceUnitOfType(unitType);
+                unitProduced = true;
+            }
+        });
+        
+        return unitProduced;
     }
     
     /**
-     * Produce a single unit
+     * Check if a specific unit type can be produced
+     * @param {string} unitType - Type of unit to check
+     * @param {number} currentTime - Current timestamp
+     * @returns {boolean} True if unit can be produced
      */
-    produceUnit() {
-        if (this.unitCount < this.maxUnitCount) {
-            this.unitCount++;
+    checkUnitTypeProduction(unitType, currentTime) {
+        const unitData = this.unitTypes[unitType];
+        if (!unitData) return false;
+        
+        const timeSinceLastProduction = currentTime - unitData.lastProduced;
+        const adjustedProductionTime = unitData.productionTime / this.getProductionMultiplier();
+        
+        return timeSinceLastProduction >= adjustedProductionTime && 
+               this.getTotalUnits() < this.maxUnitCount && 
+               this.owner.canAfford(unitData.cost);
+    }
+    
+    /**
+     * Produce a unit of specific type
+     * @param {string} unitType - Type of unit to produce
+     */
+    produceUnitOfType(unitType) {
+        const unitData = this.unitTypes[unitType];
+        if (!unitData) return;
+        
+        if (this.owner.spendGold(unitData.cost)) {
+            unitData.count++;
+            unitData.lastProduced = Date.now();
             this.owner.updateStatistics({ unitsProduced: this.owner.statistics.unitsProduced + 1 });
-            
-            // Add gold production (for future resource system)
-            this.owner.addGold(this.goldProduction);
+            console.log(`${this.owner.name} produced ${unitType} for ${unitData.cost} gold. Total ${unitType}: ${unitData.count}`);
         }
     }
+    
+    /**
+     * Get total units in castle (all types combined)
+     * @returns {number} Total unit count
+     */
+    getTotalUnits() {
+        return Object.values(this.unitTypes).reduce((sum, unitData) => sum + unitData.count, 0);
+    }
+    
+    /**
+     * Update gold production for this castle
+     * @param {number} currentTime - Current timestamp
+     */
+    updateGoldProduction(currentTime) {
+        const timeSinceLastGold = currentTime - this.lastGoldTime;
+        if (timeSinceLastGold >= 1000) { // Every second
+            const goldToAdd = this.goldProduction * Math.floor(timeSinceLastGold / 1000);
+            this.owner.addGold(goldToAdd);
+            this.lastGoldTime = currentTime;
+        }
+    }
+    
     
     /**
      * Send army from this castle
@@ -85,12 +178,16 @@ class Castle {
      * @returns {Object|null} Army data or null if can't send
      */
     sendArmy(targetX, targetY, percentage = 0.5) {
-        const unitsToSend = Math.floor(this.unitCount * percentage);
+        const totalUnits = this.getTotalUnits();
+        const unitsToSend = Math.floor(totalUnits * percentage);
         
         if (unitsToSend <= 0) {
             console.log(`Castle at ${this.x},${this.y}: Not enough units to send army!`);
             return null;
         }
+        
+        // Calculate unit composition for the army
+        const armyComposition = this.calculateArmyComposition(unitsToSend);
         
         // Create army data
         const armyData = {
@@ -99,6 +196,7 @@ class Castle {
             targetX: targetX,
             targetY: targetY,
             unitCount: unitsToSend,
+            unitTypes: armyComposition,
             owner: this.owner,
             moveProgress: 0,
             moveSpeed: 0.02,
@@ -108,10 +206,54 @@ class Castle {
         };
         
         // Remove units from castle
-        this.unitCount -= unitsToSend;
+        this.removeUnitsFromCastle(armyComposition);
         
-        console.log(`Castle sent army with ${unitsToSend} units to ${targetX}, ${targetY}`);
+        console.log(`Castle sent army with ${unitsToSend} units (${JSON.stringify(armyComposition)}) to ${targetX}, ${targetY}`);
         return armyData;
+    }
+    
+    /**
+     * Calculate unit composition for army based on available units
+     * @param {number} totalToSend - Total units to send in army
+     * @returns {Object} Unit composition for army
+     */
+    calculateArmyComposition(totalToSend) {
+        const composition = {
+            infantry: 0,
+            cavalry: 0,
+            archers: 0
+        };
+        
+        let remainingToSend = totalToSend;
+        
+        // Distribute units proportionally
+        Object.keys(this.unitTypes).forEach(unitType => {
+            const availableOfType = this.unitTypes[unitType].count;
+            const proportionToSend = Math.min(availableOfType, Math.floor(remainingToSend * 0.33));
+            composition[unitType] = proportionToSend;
+            remainingToSend -= proportionToSend;
+        });
+        
+        // Add remaining units to infantry
+        if (remainingToSend > 0) {
+            const infantryAvailable = this.unitTypes.infantry.count - composition.infantry;
+            composition.infantry += Math.min(remainingToSend, infantryAvailable);
+        }
+        
+        return composition;
+    }
+    
+    /**
+     * Remove specified units from castle
+     * @param {Object} unitsToRemove - Units to remove by type
+     */
+    removeUnitsFromCastle(unitsToRemove) {
+        Object.keys(unitsToRemove).forEach(unitType => {
+            if (this.unitTypes[unitType]) {
+                this.unitTypes[unitType].count -= unitsToRemove[unitType];
+                this.unitTypes[unitType].count = Math.max(0, this.unitTypes[unitType].count);
+            }
+        });
     }
     
     /**
@@ -120,11 +262,24 @@ class Castle {
      * @param {Player} owner - Owner of incoming units
      * @returns {boolean} True if reinforcement accepted
      */
-    receiveReinforcements(unitCount, owner) {
+    receiveReinforcements(unitCount, owner, unitTypes = null) {
         if (this.owner === owner) {
-            const unitsToAdd = Math.min(unitCount, this.maxUnitCount - this.unitCount);
-            this.unitCount += unitsToAdd;
-            console.log(`Castle reinforced with ${unitsToAdd} units! Total: ${this.unitCount}`);
+            const currentTotal = this.getTotalUnits();
+            const unitsToAdd = Math.min(unitCount, this.maxUnitCount - currentTotal);
+            
+            if (unitTypes) {
+                // Add specific unit types
+                Object.keys(unitTypes).forEach(unitType => {
+                    if (this.unitTypes[unitType]) {
+                        this.unitTypes[unitType].count += unitTypes[unitType];
+                    }
+                });
+            } else {
+                // Default to infantry
+                this.unitTypes.infantry.count += unitsToAdd;
+            }
+            
+            console.log(`Castle reinforced with ${unitsToAdd} units! Total: ${this.getTotalUnits()}`);
             return true;
         }
         return false;
@@ -189,16 +344,49 @@ class Castle {
      * @param {number} cost - Cost of upgrade
      * @returns {boolean} True if upgrade successful
      */
-    upgrade(upgradeType, cost = 100) {
-        if (this.owner.canAfford(cost) && this.upgrades.hasOwnProperty(upgradeType)) {
+    upgrade(upgradeType) {
+        if (!this.upgrades.hasOwnProperty(upgradeType)) {
+            console.log(`Invalid upgrade type: ${upgradeType}`);
+            return false;
+        }
+        
+        const cost = this.getUpgradeCost(upgradeType);
+        
+        if (this.owner.canAfford(cost)) {
             if (this.owner.spendGold(cost)) {
                 this.upgrades[upgradeType]++;
                 this.applyUpgrade(upgradeType);
-                console.log(`Castle upgraded: ${upgradeType} level ${this.upgrades[upgradeType]}`);
+                console.log(`${this.owner.name} upgraded castle ${upgradeType} to level ${this.upgrades[upgradeType]} for ${cost} gold`);
+                this.triggerUpgradeEffects(upgradeType);
                 return true;
             }
+        } else {
+            console.log(`${this.owner.name} cannot afford ${upgradeType} upgrade (costs ${cost} gold, has ${this.owner.resources.gold})`);
         }
         return false;
+    }
+    
+    /**
+     * Trigger additional effects when castle is upgraded
+     * @param {string} upgradeType - Type of upgrade completed
+     */
+    triggerUpgradeEffects(upgradeType) {
+        switch (upgradeType) {
+            case 'production':
+                // Reset production timers to apply new rates immediately
+                Object.keys(this.unitTypes).forEach(unitType => {
+                    this.unitTypes[unitType].lastProduced = Date.now();
+                });
+                break;
+            case 'capacity':
+                // Capacity upgrade takes effect immediately
+                console.log(`Castle capacity increased to ${this.maxUnitCount} units`);
+                break;
+            case 'defense':
+                // Defense upgrade affects combat immediately
+                console.log(`Castle defense bonus increased to ${(this.defenseBonus * 100).toFixed(0)}%`);
+                break;
+        }
     }
     
     /**
@@ -293,13 +481,17 @@ class Castle {
             x: this.x,
             y: this.y,
             ownerId: this.owner.id,
-            unitCount: this.unitCount,
+            unitTypes: this.unitTypes,
             level: this.level,
             upgrades: this.upgrades,
             lastProductionTime: this.lastProductionTime,
+            lastGoldTime: this.lastGoldTime,
             isProducing: this.isProducing,
             type: this.type,
-            health: this.health
+            health: this.health,
+            goldProduction: this.goldProduction,
+            productionCycle: this.productionCycle,
+            currentProductionIndex: this.currentProductionIndex
         };
     }
     
@@ -310,13 +502,24 @@ class Castle {
      */
     static fromJSON(data, owner) {
         const castle = new Castle(data.x, data.y, owner);
-        castle.unitCount = data.unitCount || 10;
+        
+        // Restore unit types or use legacy unitCount
+        if (data.unitTypes) {
+            castle.unitTypes = data.unitTypes;
+        } else if (data.unitCount) {
+            castle.unitTypes.infantry.count = data.unitCount;
+        }
+        
         castle.level = data.level || 1;
         castle.upgrades = data.upgrades || castle.upgrades;
         castle.lastProductionTime = data.lastProductionTime || Date.now();
+        castle.lastGoldTime = data.lastGoldTime || Date.now();
         castle.isProducing = data.isProducing !== undefined ? data.isProducing : true;
         castle.type = data.type || 'basic';
         castle.health = data.health || 100;
+        castle.goldProduction = data.goldProduction || 2;
+        castle.productionCycle = data.productionCycle || castle.productionCycle;
+        castle.currentProductionIndex = data.currentProductionIndex || 0;
         
         // Apply upgrades
         Object.keys(castle.upgrades).forEach(upgradeType => {

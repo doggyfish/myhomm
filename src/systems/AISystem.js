@@ -282,7 +282,72 @@ class AISystem {
             }
         }
         
+        // Consider castle upgrades if player has enough resources
+        if (aiData.player.resources.gold > 200) {
+            const upgradeActions = this.considerCastleUpgrades(aiData, situation);
+            actions.push(...upgradeActions);
+        }
+        
         return actions;
+    }
+    
+    /**
+     * Consider castle upgrades for AI player
+     * @param {Object} aiData - AI player data
+     * @param {Object} situation - Current situation analysis
+     * @returns {Array} Upgrade actions
+     */
+    considerCastleUpgrades(aiData, situation) {
+        const actions = [];
+        const { player, settings } = aiData;
+        
+        situation.myCastles.forEach(castle => {
+            // Prioritize upgrades based on AI personality
+            const upgradeOptions = this.prioritizeUpgrades(castle, settings);
+            
+            for (const upgradeType of upgradeOptions) {
+                const cost = castle.getUpgradeCost(upgradeType);
+                
+                if (player.canAfford(cost) && castle.upgrades[upgradeType] < 3) {
+                    // AI has a chance to upgrade based on economic focus
+                    const upgradeChance = settings.economicFocus * 0.5;
+                    
+                    if (Math.random() < upgradeChance) {
+                        actions.push({
+                            type: 'upgrade_castle',
+                            castle: castle,
+                            upgradeType: upgradeType
+                        });
+                        break; // Only one upgrade per castle per turn
+                    }
+                }
+            }
+        });
+        
+        return actions;
+    }
+    
+    /**
+     * Prioritize upgrades based on AI settings
+     * @param {Object} castle - Castle to upgrade
+     * @param {Object} settings - AI difficulty settings
+     * @returns {Array} Prioritized upgrade types
+     */
+    prioritizeUpgrades(castle, settings) {
+        const upgrades = [];
+        
+        if (settings.economicFocus > 0.6) {
+            // Economic AI prioritizes production and capacity
+            upgrades.push('production', 'capacity', 'defense');
+        } else if (settings.aggressiveness > 0.6) {
+            // Aggressive AI prioritizes defense and production
+            upgrades.push('defense', 'production', 'capacity');
+        } else {
+            // Balanced AI
+            upgrades.push('production', 'defense', 'capacity');
+        }
+        
+        return upgrades;
     }
     
     /**

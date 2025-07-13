@@ -185,8 +185,8 @@ class Game {
     initializePlayers() {
         const playerData = [
             { id: 0, name: "Player 1", color: "#4af", isHuman: true },
-            { id: 1, name: "Player 2", color: "#f44", isHuman: false },
-            { id: 2, name: "Player 3", color: "#4f4", isHuman: false }
+            { id: 1, name: "Aggressive AI", color: "#f44", isHuman: false, difficulty: 'hard', personality: 'aggressive' },
+            { id: 2, name: "Defensive AI", color: "#4f4", isHuman: false, difficulty: 'medium', personality: 'defensive' }
         ];
         
         this.players = [];
@@ -194,11 +194,20 @@ class Game {
         playerData.forEach(data => {
             if (typeof Player !== 'undefined') {
                 const player = new Player(data.id, data.name, data.color, data.isHuman);
+                
+                // Set AI personality settings
+                if (!data.isHuman && data.personality) {
+                    player.aiPersonality = data.personality;
+                    player.settings = this.getPersonalitySettings(data.personality);
+                }
+                
                 this.players.push(player);
                 
-                // Register AI players
+                // Register AI players with specific difficulty
                 if (!player.isHuman && this.systems.ai) {
-                    this.systems.ai.registerAIPlayer(player, 'medium');
+                    const difficulty = data.difficulty || 'medium';
+                    this.systems.ai.registerAIPlayer(player, difficulty);
+                    console.log(`Registered ${player.name} as ${difficulty} ${data.personality || 'balanced'} AI`);
                 }
             } else {
                 // Fallback to simple object
@@ -207,6 +216,42 @@ class Game {
         });
         
         console.log(`Initialized ${this.players.length} players`);
+    }
+    
+    /**
+     * Get personality settings for AI players
+     * @param {string} personality - AI personality type
+     * @returns {Object} Personality settings
+     */
+    getPersonalitySettings(personality) {
+        const personalitySettings = {
+            aggressive: {
+                economicFocus: 0.2,
+                aggressiveness: 0.9,
+                expansionTendency: 0.8,
+                riskTolerance: 0.9
+            },
+            defensive: {
+                economicFocus: 0.6,
+                aggressiveness: 0.3,
+                expansionTendency: 0.4,
+                riskTolerance: 0.3
+            },
+            economic: {
+                economicFocus: 0.9,
+                aggressiveness: 0.2,
+                expansionTendency: 0.6,
+                riskTolerance: 0.4
+            },
+            balanced: {
+                economicFocus: 0.5,
+                aggressiveness: 0.5,
+                expansionTendency: 0.5,
+                riskTolerance: 0.5
+            }
+        };
+        
+        return personalitySettings[personality] || personalitySettings.balanced;
     }
     
     /**
@@ -319,9 +364,31 @@ class Game {
         
         // Handle selection and movement logic
         if (this.ui.selectedCastle) {
+            // Check if clicking on the same castle (deselect)
+            if (clickedCastle === this.ui.selectedCastle) {
+                this.deselectCastle();
+                console.log("Deselected castle");
+                return;
+            }
+            
+            // Check if clicking on own castle (reinforce/merge)
+            if (clickedCastle && clickedCastle.owner === this.ui.selectedCastle.owner) {
+                console.log("Cannot send army to own castle - use army merging instead");
+                this.deselectCastle();
+                return;
+            }
+            
+            // Send army to target location (attack or move to empty space)
             this.sendArmyFromCastle(this.ui.selectedCastle, gridX, gridY);
             this.deselectCastle();
         } else if (this.ui.selectedArmy) {
+            // Check if clicking on the same army (deselect)
+            if (clickedArmy === this.ui.selectedArmy) {
+                this.deselectArmy();
+                console.log("Deselected army");
+                return;
+            }
+            
             this.moveArmy(this.ui.selectedArmy, gridX, gridY);
             this.deselectArmy();
         } else {
@@ -470,9 +537,32 @@ class Game {
                 case 'move_army':
                     this.moveArmy(action.army, action.target.x, action.target.y);
                     break;
+                case 'upgrade_castle':
+                    this.upgradeCastle(action.castle, action.upgradeType);
+                    break;
                 // Add more action types as needed
             }
         });
+    }
+    
+    /**
+     * Upgrade a castle
+     * @param {Castle} castle - Castle to upgrade
+     * @param {string} upgradeType - Type of upgrade
+     */
+    upgradeCastle(castle, upgradeType) {
+        if (castle && castle.upgrade) {
+            const success = castle.upgrade(upgradeType);
+            if (success) {
+                this.triggerEvent('onCastleUpgraded', { 
+                    castle: castle, 
+                    upgradeType: upgradeType, 
+                    level: castle.upgrades[upgradeType] 
+                });
+            }
+            return success;
+        }
+        return false;
     }
     
     /**
@@ -677,6 +767,18 @@ class Game {
     }
     
     checkWinConditions() {
+        // Check for player elimination (lost all castles)
+        this.players.forEach(player => {
+            const playerCastles = this.castles.filter(c => c.owner === player);
+            const playerArmies = this.armies.filter(a => a.owner === player);
+            
+            // If player has no castles, eliminate their armies
+            if (playerCastles.length === 0 && playerArmies.length > 0) {
+                this.eliminatePlayer(player);
+            }
+        });
+        
+        // Check human player win/loss conditions
         const humanPlayers = this.players.filter(p => p.isHuman);
         const humanPlayer = humanPlayers[0];
         
@@ -691,6 +793,44 @@ class Game {
         } else if (humanCastles.length === totalCastles) {
             this.endGame('victory');
         }
+        
+        // Check for AI-only victory (if only one AI left with castles)
+        const playersWithCastles = this.players.filter(player => {
+            const castles = this.castles.filter(c => c.owner === player);
+            return castles.length > 0;
+        });
+        
+        if (playersWithCastles.length === 1 && !playersWithCastles[0].isHuman) {
+            this.endGame('ai_victory');
+        }
+    }
+    
+    /**
+     * Eliminate a player when they lose all castles
+     * @param {Player} player - Player to eliminate
+     */
+    eliminatePlayer(player) {
+        console.log(`Player ${player.name} has been eliminated - removing all armies`);
+        
+        // Mark all player's armies for removal
+        this.armies.forEach(army => {
+            if (army.owner === player) {
+                army.shouldBeRemoved = true;
+            }
+        });
+        
+        // Remove AI player from AI system
+        if (!player.isHuman && this.systems.ai) {
+            this.systems.ai.removeAIPlayer(player.id);
+        }
+        
+        // Update player statistics
+        player.updateStatistics({ 
+            eliminated: true,
+            eliminationTime: Date.now() - this.gameStartTime 
+        });
+        
+        this.triggerEvent('onPlayerEliminated', { player: player });
     }
     
     endGame(result) {
