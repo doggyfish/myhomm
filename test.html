@@ -98,7 +98,23 @@
         <div class="log" id="gameLog"></div>
     </div>
 
-    <script src="game.js"></script>
+    <!-- Core Game Classes -->
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Castle.js"></script>
+    <script src="src/entities/Army.js"></script>
+    
+    <!-- Game Systems -->
+    <script src="src/systems/ProductionSystem.js"></script>
+    <script src="src/systems/CombatSystem.js"></script>
+    <script src="src/systems/MovementSystem.js"></script>
+    <script src="src/systems/AISystem.js"></script>
+    
+    <!-- Utilities -->
+    <script src="src/utils/GridUtils.js"></script>
+    <script src="src/utils/GameUtils.js"></script>
+    
+    <!-- Core Game Controller -->
+    <script src="src/core/Game.js"></script>
     <script>
         // Error handler for test debugging
         window.addEventListener('error', function(e) {
