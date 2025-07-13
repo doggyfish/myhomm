@@ -277,6 +277,30 @@ class GameTestSuite {
         this.assertTrue(castle.owner !== originalOwner, "Castle owner should be different");
     }
     
+    async testCastleReinforcement() {
+        this.addResult(true, "=== INTEGRATION TESTS: Castle Reinforcement ===");
+        
+        const game = this.createTestGame();
+        const castle = game.castles[0]; // Use first castle
+        const initialUnits = castle.unitCount;
+        
+        // Create army with same owner as castle
+        const reinforcingArmy = {
+            unitCount: 7,
+            owner: castle.owner,
+            targetX: castle.x,
+            targetY: castle.y,
+            shouldBeRemoved: false
+        };
+        
+        // Simulate reinforcement
+        game.resolveCastleCombat(reinforcingArmy, castle);
+        
+        this.assertEqual(castle.unitCount, initialUnits + 7, `Castle should be reinforced (${initialUnits} + 7 = ${initialUnits + 7})`);
+        this.assertTrue(reinforcingArmy.shouldBeRemoved, "Reinforcing army should be marked for removal");
+        this.assertEqual(castle.owner.name, reinforcingArmy.owner.name, "Castle owner should remain the same");
+    }
+    
     // PERFORMANCE TESTS
     async testGamePerformance() {
         this.addResult(true, "=== PERFORMANCE TESTS ===");
@@ -352,6 +376,7 @@ class GameTestSuite {
             await this.testCompleteGameFlow();
             await this.testArmyMerging();
             await this.testCastleConquest();
+            await this.testCastleReinforcement();
             await this.testGamePerformance();
             await this.testMemoryLeaks();
             
@@ -381,6 +406,7 @@ class GameTestSuite {
         await this.testCompleteGameFlow();
         await this.testArmyMerging();
         await this.testCastleConquest();
+        await this.testCastleReinforcement();
         
         this.displayResults();
     }

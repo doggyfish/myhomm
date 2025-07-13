@@ -344,18 +344,29 @@ class MyHoMMGame {
         const attackerUnits = army.unitCount;
         const defenderUnits = defendingCastle.unitCount;
         
-        console.log(`Castle Combat: ${attackerUnits} vs ${defenderUnits}`);
-        
-        if (attackerUnits > defenderUnits) {
-            // Attacker wins - takes over castle
-            const remainingUnits = attackerUnits - defenderUnits;
-            defendingCastle.unitCount = remainingUnits;
-            defendingCastle.owner = army.owner;
-            console.log(`${army.owner.name} conquered castle with ${remainingUnits} units!`);
+        if (army.owner === defendingCastle.owner) {
+            // Same owner - reinforce castle
+            defendingCastle.unitCount += attackerUnits;
+            console.log(`${army.owner.name} army reinforced castle! Castle now has ${defendingCastle.unitCount} units.`);
+            // Mark army for removal since it merged with castle
+            army.shouldBeRemoved = true;
         } else {
-            // Defender wins - keeps castle
-            defendingCastle.unitCount = defenderUnits - attackerUnits;
-            console.log(`${defendingCastle.owner.name} defended castle!`);
+            // Different owners - combat
+            console.log(`Castle Combat: ${attackerUnits} vs ${defenderUnits}`);
+            
+            if (attackerUnits > defenderUnits) {
+                // Attacker wins - takes over castle
+                const remainingUnits = attackerUnits - defenderUnits;
+                defendingCastle.unitCount = remainingUnits;
+                defendingCastle.owner = army.owner;
+                console.log(`${army.owner.name} conquered castle with ${remainingUnits} units!`);
+            } else {
+                // Defender wins - keeps castle
+                defendingCastle.unitCount = defenderUnits - attackerUnits;
+                console.log(`${defendingCastle.owner.name} defended castle!`);
+            }
+            // Army is destroyed in either case during castle combat
+            army.shouldBeRemoved = true;
         }
     }
     
