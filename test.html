@@ -100,11 +100,7 @@
 
     <script src="game.js"></script>
     <script>
-        // Add debugging before loading test suite
-        console.log("Loading test suite...");
-        console.log("MyHoMMGame available:", typeof MyHoMMGame !== 'undefined');
-        
-        // Add error handler
+        // Error handler for test debugging
         window.addEventListener('error', function(e) {
             console.error('JavaScript Error:', e.error);
             const results = document.getElementById('testResults');
