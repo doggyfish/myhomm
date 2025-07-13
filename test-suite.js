@@ -245,8 +245,9 @@ class GameTestSuite {
         };
         game.armies.push(movingArmy);
         
-        // Simulate arrival
+        // Simulate arrival and army update cycle
         game.armyReachedDestination(movingArmy);
+        game.updateArmies(); // This will remove the marked army
         
         this.assertEqual(army1.unitCount, 15, "Stationary army should have merged units (10+5=15)");
         this.assertEqual(game.armies.length, 1, "Moving army should be removed after merging");

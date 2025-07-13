@@ -287,6 +287,12 @@ class MyHoMMGame {
         for (let i = this.armies.length - 1; i >= 0; i--) {
             const army = this.armies[i];
             
+            // First check if army should be removed (for merging, etc.)
+            if (army.shouldBeRemoved) {
+                this.armies.splice(i, 1);
+                continue;
+            }
+            
             if (!army.isStationary) {
                 // Move army towards target
                 army.moveProgress += army.moveSpeed;
@@ -295,8 +301,8 @@ class MyHoMMGame {
                     // Army reached destination
                     this.armyReachedDestination(army);
                     
-                    // Remove army if it was destroyed in combat or merged
-                    if (!army.isStationary) {
+                    // Remove army if it was destroyed in combat or not stationary
+                    if (!army.isStationary || army.shouldBeRemoved) {
                         this.armies.splice(i, 1);
                     }
                 }
@@ -320,6 +326,10 @@ class MyHoMMGame {
         } else if (existingArmy) {
             // Fight existing army
             this.resolveArmyCombat(army, existingArmy);
+            // Check if army should be removed after combat (e.g., after merging)
+            if (army.shouldBeRemoved) {
+                army.isStationary = false; // This will cause it to be removed in updateArmies
+            }
         } else {
             // Empty tile - army stays there
             army.x = army.targetX;
@@ -359,6 +369,8 @@ class MyHoMMGame {
             // Same owner - merge armies
             defendingArmy.unitCount += attackerUnits;
             console.log(`Armies merged! New strength: ${defendingArmy.unitCount}`);
+            // Mark attacking army for removal
+            attackingArmy.shouldBeRemoved = true;
         } else if (attackerUnits > defenderUnits) {
             // Attacker wins
             const remainingUnits = attackerUnits - defenderUnits;
