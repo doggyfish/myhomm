@@ -6,24 +6,72 @@ class AISystem {
         this.aiPlayers = new Map(); // Map of player ID to AI state
         this.lastUpdateTime = Date.now();
         this.updateInterval = 2000; // AI thinks every 2 seconds
+        
+        // Enhanced difficulty settings with upgrade frequencies
         this.difficultySettings = {
             easy: {
                 reactionTime: 3000,
                 attackThreshold: 1.5,
                 economicFocus: 0.7,
-                aggressiveness: 0.3
+                aggressiveness: 0.3,
+                upgradeFrequency: 0.2,
+                goldReserve: 50 // Keep minimum gold reserve
             },
             medium: {
                 reactionTime: 2000,
                 attackThreshold: 1.2,
                 economicFocus: 0.5,
-                aggressiveness: 0.5
+                aggressiveness: 0.5,
+                upgradeFrequency: 0.4,
+                goldReserve: 100
             },
             hard: {
                 reactionTime: 1000,
                 attackThreshold: 1.0,
                 economicFocus: 0.3,
-                aggressiveness: 0.8
+                aggressiveness: 0.8,
+                upgradeFrequency: 0.6,
+                goldReserve: 150
+            }
+        };
+        
+        // AI Personality definitions for strategic behavior
+        this.personalityTypes = {
+            aggressive: {
+                name: "Aggressive AI",
+                economicFocus: 0.2,
+                aggressiveness: 0.9,
+                expansionTendency: 0.8,
+                riskTolerance: 0.9,
+                preferredStrategy: "rapid_expansion",
+                upgradePreference: ['production', 'defense', 'capacity']
+            },
+            defensive: {
+                name: "Defensive AI", 
+                economicFocus: 0.6,
+                aggressiveness: 0.3,
+                expansionTendency: 0.4,
+                riskTolerance: 0.3,
+                preferredStrategy: "fortification",
+                upgradePreference: ['defense', 'capacity', 'production']
+            },
+            economic: {
+                name: "Economic AI",
+                economicFocus: 0.9,
+                aggressiveness: 0.2,
+                expansionTendency: 0.6,
+                riskTolerance: 0.4,
+                preferredStrategy: "resource_accumulation",
+                upgradePreference: ['capacity', 'production', 'defense']
+            },
+            balanced: {
+                name: "Balanced AI",
+                economicFocus: 0.5,
+                aggressiveness: 0.5,
+                expansionTendency: 0.5,
+                riskTolerance: 0.5,
+                preferredStrategy: "adaptive",
+                upgradePreference: ['production', 'defense', 'capacity']
             }
         };
     }
@@ -32,19 +80,44 @@ class AISystem {
      * Register an AI player
      * @param {Player} player - Player to register as AI
      * @param {string} difficulty - AI difficulty level
+     * @param {string} personality - AI personality type
      */
-    registerAIPlayer(player, difficulty = 'medium') {
+    registerAIPlayer(player, difficulty = 'medium', personality = null) {
         if (!player.isHuman) {
+            // Assign personality based on player settings or random selection
+            const assignedPersonality = personality || 
+                                       player.aiPersonality || 
+                                       this.selectRandomPersonality();
+            
+            const personalityData = this.personalityTypes[assignedPersonality] || this.personalityTypes.balanced;
+            
             this.aiPlayers.set(player.id, {
                 player: player,
                 difficulty: difficulty,
+                personality: assignedPersonality,
+                personalityData: personalityData,
                 settings: this.difficultySettings[difficulty],
                 lastAction: Date.now(),
+                lastUpgradeCheck: Date.now(),
                 strategy: this.selectStrategy(player, difficulty),
                 targets: [],
-                state: 'evaluating' // evaluating, attacking, defending, expanding
+                state: 'evaluating', // evaluating, attacking, defending, expanding
+                goldSpentOnUpgrades: 0,
+                upgradeHistory: [],
+                decisionHistory: []
             });
+            
+            console.log(`Registered ${player.name} as ${difficulty} ${personalityData.name}`);
         }
+    }
+    
+    /**
+     * Select random personality for AI player
+     * @returns {string} Random personality type
+     */
+    selectRandomPersonality() {
+        const personalities = Object.keys(this.personalityTypes);
+        return personalities[Math.floor(Math.random() * personalities.length)];
     }
     
     /**
@@ -292,43 +365,161 @@ class AISystem {
     }
     
     /**
-     * Consider castle upgrades for AI player
+     * Consider castle upgrades for AI player (Enhanced with personality-based decisions)
      * @param {Object} aiData - AI player data
      * @param {Object} situation - Current situation analysis
      * @returns {Array} Upgrade actions
      */
     considerCastleUpgrades(aiData, situation) {
         const actions = [];
-        const { player, settings } = aiData;
+        const { player, settings, personalityData, difficulty } = aiData;
+        const currentTime = Date.now();
+        
+        // Check if enough time has passed since last upgrade check
+        if (currentTime - aiData.lastUpgradeCheck < 5000) { // Check every 5 seconds
+            return actions;
+        }
+        
+        // Calculate available gold after reserve
+        const availableGold = player.resources.gold - settings.goldReserve;
+        
+        if (availableGold < 50) {
+            return actions; // Not enough gold after reserves
+        }
         
         situation.myCastles.forEach(castle => {
-            // Prioritize upgrades based on AI personality
-            const upgradeOptions = this.prioritizeUpgrades(castle, settings);
+            // Prioritize upgrades based on AI personality and situation
+            const upgradeOptions = this.prioritizeUpgradesByPersonality(castle, personalityData, situation);
             
             for (const upgradeType of upgradeOptions) {
                 const cost = castle.getUpgradeCost(upgradeType);
                 
-                if (player.canAfford(cost) && castle.upgrades[upgradeType] < 3) {
-                    // AI has a chance to upgrade based on economic focus
-                    const upgradeChance = settings.economicFocus * 0.5;
+                if (cost <= availableGold && castle.upgrades[upgradeType] < 5) {
+                    // Calculate upgrade desirability based on personality and situation
+                    const upgradeDesirability = this.calculateUpgradeDesirability(
+                        castle, upgradeType, personalityData, situation, settings
+                    );
                     
-                    if (Math.random() < upgradeChance) {
+                    // AI upgrade frequency modified by personality and difficulty
+                    const baseUpgradeChance = settings.upgradeFrequency * personalityData.economicFocus;
+                    const finalUpgradeChance = baseUpgradeChance * upgradeDesirability;
+                    
+                    if (Math.random() < finalUpgradeChance) {
                         actions.push({
                             type: 'upgrade_castle',
                             castle: castle,
-                            upgradeType: upgradeType
+                            upgradeType: upgradeType,
+                            cost: cost,
+                            reasoning: `${personalityData.name} prioritizes ${upgradeType} (desirability: ${upgradeDesirability.toFixed(2)})`
                         });
-                        break; // Only one upgrade per castle per turn
+                        
+                        // Record upgrade decision
+                        aiData.upgradeHistory.push({
+                            timestamp: currentTime,
+                            castle: castle.getId(),
+                            upgradeType: upgradeType,
+                            cost: cost,
+                            reasoning: upgradeDesirability
+                        });
+                        
+                        break; // Only one upgrade per castle per decision cycle
                     }
                 }
             }
         });
         
+        aiData.lastUpgradeCheck = currentTime;
         return actions;
     }
     
     /**
-     * Prioritize upgrades based on AI settings
+     * Calculate upgrade desirability based on personality and game situation
+     * @param {Castle} castle - Castle to upgrade
+     * @param {string} upgradeType - Type of upgrade
+     * @param {Object} personalityData - AI personality data
+     * @param {Object} situation - Current game situation
+     * @param {Object} settings - AI difficulty settings
+     * @returns {number} Desirability score (0-2.0)
+     */
+    calculateUpgradeDesirability(castle, upgradeType, personalityData, situation, settings) {
+        let desirability = 1.0; // Base desirability
+        
+        // Modify based on personality preferences
+        const preferenceIndex = personalityData.upgradePreference.indexOf(upgradeType);
+        if (preferenceIndex !== -1) {
+            // Higher priority = higher desirability (0 = highest priority)
+            desirability += (3 - preferenceIndex) * 0.2;
+        }
+        
+        // Situational modifiers
+        switch (upgradeType) {
+            case 'production':
+                // More desirable if we have good economy but need more units
+                if (personalityData.economicFocus > 0.5) {
+                    desirability += 0.3;
+                }
+                if (situation.militaryStrength < 1.0) {
+                    desirability += 0.4; // Need more military power
+                }
+                break;
+                
+            case 'defense':
+                // More desirable if under threat or defensive personality
+                if (situation.threats.length > 0) {
+                    desirability += 0.5;
+                }
+                if (personalityData.aggressiveness < 0.5) {
+                    desirability += 0.3;
+                }
+                break;
+                
+            case 'capacity':
+                // More desirable if castle is near capacity
+                const capacityUsage = castle.unitCount / castle.maxUnitCount;
+                if (capacityUsage > 0.8) {
+                    desirability += 0.6;
+                }
+                if (personalityData.economicFocus > 0.7) {
+                    desirability += 0.2;
+                }
+                break;
+        }
+        
+        // Risk tolerance affects willingness to spend gold
+        desirability *= personalityData.riskTolerance;
+        
+        return Math.min(2.0, desirability); // Cap at 2.0
+    }
+    
+    /**
+     * Prioritize upgrades based on AI personality (Enhanced)
+     * @param {Object} castle - Castle to upgrade
+     * @param {Object} personalityData - AI personality data
+     * @param {Object} situation - Current game situation
+     * @returns {Array} Prioritized upgrade types
+     */
+    prioritizeUpgradesByPersonality(castle, personalityData, situation) {
+        // Start with personality-based preferences
+        let upgrades = [...personalityData.upgradePreference];
+        
+        // Situational adjustments
+        if (situation.threats.length > 0) {
+            // Move defense to front if under threat
+            upgrades = upgrades.filter(u => u !== 'defense');
+            upgrades.unshift('defense');
+        }
+        
+        if (situation.militaryStrength > 1.5) {
+            // If militarily strong, prioritize economy
+            upgrades = upgrades.filter(u => u !== 'capacity');
+            upgrades.splice(1, 0, 'capacity');
+        }
+        
+        return upgrades;
+    }
+    
+    /**
+     * Legacy method for backward compatibility
      * @param {Object} castle - Castle to upgrade
      * @param {Object} settings - AI difficulty settings
      * @returns {Array} Prioritized upgrade types
