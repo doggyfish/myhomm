@@ -38,6 +38,17 @@ class Game {
             ai: null
         };
         
+        // Mobile systems (Phase 3)
+        this.mobile = {
+            manager: null,
+            optimizer: null,
+            touchManager: null,
+            performanceManager: null,
+            uiManager: null,
+            combatSystem: null,
+            isActive: false
+        };
+        
         // UI and input
         this.ui = {
             selectedCastle: null,
@@ -86,6 +97,9 @@ class Game {
             
             // Setup input handling
             this.setupInputHandling();
+            
+            // Initialize mobile systems (Phase 3)
+            this.initializeMobileSystems();
             
             // Start game loop if not in test mode
             if (!this.settings.testMode) {
@@ -1099,10 +1113,208 @@ class Game {
     }
     
     /**
+     * Initialize mobile systems (Phase 3)
+     */
+    async initializeMobileSystems() {
+        try {
+            console.log('🚀 Initializing mobile systems...');
+            
+            // Check if mobile classes are available
+            if (typeof MobileGameManager !== 'undefined') {
+                this.mobile.manager = new MobileGameManager(this);
+                await this.mobile.manager.initialize();
+                
+                // Store references to mobile systems
+                this.mobile.optimizer = this.mobile.manager.mobileOptimizer;
+                this.mobile.touchManager = this.mobile.manager.touchManager;
+                this.mobile.performanceManager = this.mobile.manager.performanceManager;
+                this.mobile.uiManager = this.mobile.manager.uiManager;
+                this.mobile.combatSystem = this.mobile.manager.combatSystem;
+                this.mobile.isActive = this.mobile.manager.isActive;
+                
+                console.log('✅ Mobile systems initialized successfully');
+            } else {
+                console.log('📱 Mobile systems not available - running in desktop mode');
+            }
+        } catch (error) {
+            console.warn('⚠️ Mobile systems initialization failed:', error);
+            console.log('📱 Falling back to desktop mode');
+        }
+    }
+    
+    /**
+     * Get human player
+     */
+    getHumanPlayer() {
+        return this.players.find(player => player.isHuman) || null;
+    }
+    
+    /**
+     * Convert screen coordinates to grid coordinates
+     */
+    screenToGrid(screenX, screenY) {
+        const gridSize = this.settings.gridSize || 40;
+        return {
+            x: Math.floor(screenX / gridSize),
+            y: Math.floor(screenY / gridSize)
+        };
+    }
+    
+    /**
+     * Get castle at grid position
+     */
+    getCastleAtPosition(gridX, gridY) {
+        return this.castles.find(castle => 
+            Math.floor(castle.x) === gridX && Math.floor(castle.y) === gridY
+        ) || null;
+    }
+    
+    /**
+     * Get army at grid position
+     */
+    getArmyAtPosition(gridX, gridY) {
+        return this.armies.find(army => 
+            Math.floor(army.x) === gridX && Math.floor(army.y) === gridY
+        ) || null;
+    }
+    
+    /**
+     * Select castle
+     */
+    selectCastle(castle) {
+        this.ui.selectedCastle = castle;
+        this.ui.selectedArmy = null;
+        
+        console.log(`Selected castle owned by ${castle.owner.name}`);
+    }
+    
+    /**
+     * Select army
+     */
+    selectArmy(army) {
+        this.ui.selectedArmy = army;
+        this.ui.selectedCastle = null;
+        
+        console.log(`Selected army owned by ${army.owner.name}`);
+    }
+    
+    /**
+     * Clear selection
+     */
+    clearSelection() {
+        this.ui.selectedCastle = null;
+        this.ui.selectedArmy = null;
+    }
+    
+    /**
+     * Issue movement command
+     */
+    issueMovementCommand(targetX, targetY) {
+        if (this.ui.selectedCastle) {
+            // Send army from selected castle
+            this.sendArmyFromCastle(this.ui.selectedCastle, targetX, targetY, 0.5);
+        } else if (this.ui.selectedArmy) {
+            // Move selected army
+            this.moveArmy(this.ui.selectedArmy, targetX, targetY);
+        }
+    }
+    
+    /**
+     * Send army from castle
+     */
+    sendArmyFromCastle(castle, targetX, targetY, percentage = 0.5) {
+        const armyData = castle.sendArmy(targetX, targetY, percentage);
+        if (armyData) {
+            const army = new Army(armyData.x, armyData.y, armyData.owner, armyData.unitCount);
+            army.targetX = armyData.targetX;
+            army.targetY = armyData.targetY;
+            army.unitTypes = armyData.unitTypes;
+            army.moveProgress = armyData.moveProgress;
+            army.moveSpeed = armyData.moveSpeed;
+            army.isStationary = armyData.isStationary;
+            
+            this.armies.push(army);
+            console.log(`Army sent from castle to ${targetX}, ${targetY}`);
+        }
+    }
+    
+    /**
+     * Move army
+     */
+    moveArmy(army, targetX, targetY) {
+        army.targetX = targetX;
+        army.targetY = targetY;
+        army.isStationary = false;
+        army.moveProgress = 0;
+        
+        console.log(`Army moving to ${targetX}, ${targetY}`);
+    }
+    
+    /**
+     * Show mobile context menu (called by mobile systems)
+     */
+    showMobileContextMenu(gridX, gridY, screenPosition) {
+        if (this.mobile.manager && this.mobile.manager.showMobileContextMenu) {
+            this.mobile.manager.showMobileContextMenu(gridX, gridY, screenPosition);
+        }
+    }
+    
+    /**
+     * Show quick army menu (called by mobile systems)
+     */
+    showQuickArmyMenu(castle) {
+        console.log(`Showing quick army menu for castle owned by ${castle.owner.name}`);
+        
+        if (this.mobile.uiManager) {
+            this.mobile.uiManager.showBottomSheet({
+                title: '⚔️ Send Army',
+                castle: castle,
+                type: 'army_selector'
+            }, {
+                height: this.mobile.uiManager.screenInfo.height * 0.4
+            });
+        }
+    }
+    
+    /**
+     * Update game area (called by mobile UI manager)
+     */
+    updateGameArea(gameArea) {
+        console.log('📱 Game area updated:', gameArea);
+        
+        // Update camera bounds if camera system exists
+        if (this.camera) {
+            this.camera.setBounds(gameArea);
+        }
+    }
+    
+    /**
+     * Check if mobile systems are active
+     */
+    isMobileActive() {
+        return this.mobile.isActive && this.mobile.manager && this.mobile.manager.isMobileActive();
+    }
+    
+    /**
+     * Get mobile performance report
+     */
+    getMobilePerformanceReport() {
+        if (this.mobile.manager) {
+            return this.mobile.manager.getPerformanceReport();
+        }
+        return null;
+    }
+    
+    /**
      * Cleanup and destroy
      */
     destroy() {
         this.gameState = 'stopped';
+        
+        // Shutdown mobile systems first
+        if (this.mobile.manager) {
+            this.mobile.manager.shutdown();
+        }
         
         // Remove event listeners
         if (this.canvas) {
