@@ -2,7 +2,19 @@
 
 ## 🧪 Test Suite Overview
 
-Your HTML5 game now has a comprehensive automated testing system with multiple testing approaches:
+Your HTML5 game now has a comprehensive automated testing system with a hybrid approach optimized for different testing scenarios:
+
+### **Test File Structure:**
+
+```
+tests/
+├── test-basic-browser.html     # 🎯 PRIMARY - All systems, daily use
+├── specialized/
+│   ├── test-mobile.html        # 📱 Mobile-specific deep testing
+│   └── test-tactical.html      # ⚔️ Tactical systems deep testing
+└── archive/
+    └── test-phase2.html        # 📦 Historical phase tests
+```
 
 ### **Test Types Available:**
 
@@ -11,14 +23,21 @@ Your HTML5 game now has a comprehensive automated testing system with multiple t
 3. **Performance Tests** - Benchmark game performance
 4. **Cross-Browser Tests** - Ensure compatibility
 5. **Memory Tests** - Check for memory leaks
+6. **Platform-Aware Tests** - Conditional loading based on device type
 
 ## 🚀 Quick Start
 
-### **Browser-Based Testing (Easiest)**
+### **Primary Testing (90% of Use Cases)**
 
-1. **Open `test.html`** in your browser
+1. **Open `test-basic-browser.html`** in your browser
 2. **Click "Run All Tests"** button
 3. **See results** immediately with visual feedback
+
+### **Specialized Testing Scenarios**
+
+- **Mobile Testing:** Open `tests/specialized/test-mobile.html` on actual mobile devices
+- **Tactical Testing:** Open `tests/specialized/test-tactical.html` for formation systems
+- **Performance Testing:** Use primary test file with performance focus
 
 ### **Command Line Testing (CI/CD)**
 
@@ -201,9 +220,37 @@ The test suite validates all your core game mechanics:
 
 ## 📱 Mobile Testing
 
-The tests work on mobile browsers too:
-- **Touch events** are automatically tested
-- **Responsive layout** is validated
-- **Performance** is measured on mobile devices
+### **Platform-Aware Testing System:**
+- **Desktop Mode:** Mobile systems are correctly NOT loaded (tests pass when absent)
+- **Mobile Mode:** Full mobile system functionality is tested
+- **Conditional Loading:** Tests validate proper platform detection
+
+### **Specialized Mobile Testing:**
+Use `tests/specialized/test-mobile.html` for:
+- **Real mobile device testing** with optimized styling
+- **Touch event validation** in actual mobile browsers  
+- **Performance testing** under mobile constraints
+- **Mobile-specific UI** testing
+
+## 🎯 Test File Usage Guidelines
+
+### **Use `test-basic-browser.html` for:**
+- ✅ Daily development testing
+- ✅ CI/CD automated testing  
+- ✅ Quick feature verification
+- ✅ Cross-platform compatibility checks
+- ✅ Platform-aware mobile system validation
+
+### **Use specialized test files for:**
+- 📱 **`tests/specialized/test-mobile.html`:** Real mobile device testing, touch optimization
+- ⚔️ **`tests/specialized/test-tactical.html`:** Complex tactical feature development  
+- 📦 **`tests/archive/`:** Historical phase-specific tests
+
+### **Benefits of This Structure:**
+- **Efficiency:** One comprehensive file for 90% of testing needs
+- **Specialization:** Focused environments for specific testing scenarios  
+- **Maintainability:** Clear separation of concerns
+- **Performance:** Lighter load for routine testing
+- **Flexibility:** Choose appropriate test environment for the task
 
 Your game is now fully tested and ready for production! 🚀
