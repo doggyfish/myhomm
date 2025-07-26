@@ -243,6 +243,9 @@ class CombatSystem {
     }
 }
 
+console.log('🔍 CombatSystem class defined, checking availability:', typeof CombatSystem, typeof window.CombatSystem);
+window.CombatSystem = CombatSystem; // Explicitly ensure it's in global scope
+
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = CombatSystem;

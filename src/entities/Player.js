@@ -1,6 +1,7 @@
 /**
  * Player class representing a game player with their properties and statistics
  */
+console.log('🔍 Player.js executing, about to define Player class');
 class Player {
     /**
      * Create a Player instance
@@ -190,6 +191,9 @@ class Player {
         return player;
     }
 }
+
+console.log('🔍 Player class defined, checking availability:', typeof Player, typeof window.Player);
+window.Player = Player; // Explicitly ensure it's in global scope
 
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {

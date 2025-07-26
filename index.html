@@ -483,20 +483,24 @@
     </div>
 
     <!-- Load platform detection and system loader first -->
-    <script src="src/core/PlatformDetector.js"></script>
-    <script src="src/core/SystemLoader.js"></script>
+    <script src="src/core/PlatformDetector.js" onload="console.log('✅ PlatformDetector.js loaded')" onerror="console.error('❌ PlatformDetector.js failed')"></script>
+    <script src="src/core/SystemLoader.js" onload="console.log('✅ SystemLoader.js loaded')" onerror="console.error('❌ SystemLoader.js failed')"></script>
     
     <!-- Always load core systems -->
-    <script src="src/entities/Player.js"></script>
-    <script src="src/entities/Castle.js"></script>
-    <script src="src/entities/Army.js"></script>
-    <script src="src/systems/ProductionSystem.js"></script>
-    <script src="src/systems/CombatSystem.js"></script>
-    <script src="src/systems/MovementSystem.js"></script>
-    <script src="src/systems/AISystem.js"></script>
-    <script src="src/ui/InputHandler.js"></script>
-    <script src="src/ui/Renderer.js"></script>
-    <script src="src/core/Game.js"></script>
+    <script src="src/entities/Player.js" onload="console.log('✅ Player.js loaded')" onerror="console.error('❌ Player.js failed')"></script>
+    <script>if (typeof Player !== 'undefined') console.log('✅ Player class available'); else console.error('❌ Player class NOT available after script load');</script>
+    <script src="src/entities/Castle.js" onload="console.log('✅ Castle.js loaded')" onerror="console.error('❌ Castle.js failed')"></script>
+    <script>if (typeof Castle !== 'undefined') console.log('✅ Castle class available'); else console.error('❌ Castle class NOT available after script load');</script>
+    <script src="src/entities/Army.js" onload="console.log('✅ Army.js loaded')" onerror="console.error('❌ Army.js failed')"></script>
+    <script>if (typeof Army !== 'undefined') console.log('✅ Army class available'); else console.error('❌ Army class NOT available after script load');</script>
+    <script src="src/systems/ProductionSystem.js" onload="console.log('✅ ProductionSystem.js loaded')" onerror="console.error('❌ ProductionSystem.js failed')"></script>
+    <script src="src/systems/CombatSystem.js" onload="console.log('✅ CombatSystem.js loaded')" onerror="console.error('❌ CombatSystem.js failed')"></script>
+    <script src="src/systems/MovementSystem.js" onload="console.log('✅ MovementSystem.js loaded')" onerror="console.error('❌ MovementSystem.js failed')"></script>
+    <script src="src/systems/AISystem.js" onload="console.log('✅ AISystem.js loaded')" onerror="console.error('❌ AISystem.js failed')"></script>
+    <script src="src/ui/InputHandler.js" onload="console.log('✅ InputHandler.js loaded')" onerror="console.error('❌ InputHandler.js failed')"></script>
+    <script src="src/ui/Renderer.js" onload="console.log('✅ Renderer.js loaded')" onerror="console.error('❌ Renderer.js failed')"></script>
+    <script src="src/core/Game.js" onload="console.log('✅ Game.js loaded')" onerror="console.error('❌ Game.js failed')"></script>
+    <script>if (typeof Game !== 'undefined') console.log('✅ Game class available'); else console.error('❌ Game class NOT available after script load');</script>
     
     <!-- Conditionally load mobile systems -->
     <script>
@@ -572,7 +576,11 @@
                 updateLoadingProgress(10, "Detecting platform...");
                 
                 // Wait for all scripts to load
+                console.log('🔍 Pre-load diagnostics:');
+                logScriptLoadingDiagnostics();
                 await waitForScriptsToLoad();
+                console.log('🔍 Post-load diagnostics:');
+                logScriptLoadingDiagnostics();
                 
                 updateLoadingProgress(20, "Loading systems...");
                 
@@ -639,8 +647,25 @@
             const checkInterval = 100; // Check every 100ms
             let waitTime = 0;
             
+            // Define all required core classes that must be loaded
+            const coreClasses = [
+                'PlatformDetector', 'SystemLoader', 
+                'Player', 'Castle', 'Army',
+                'ProductionSystem', 'CombatSystem', 'MovementSystem', 'AISystem',
+                'InputHandler', 'Renderer', 'Game'
+            ];
+            
             while (waitTime < maxWaitTime) {
                 let allLoaded = true;
+                const missingClasses = [];
+                
+                // Check all core classes first
+                for (const className of coreClasses) {
+                    if (typeof window[className] === 'undefined') {
+                        allLoaded = false;
+                        missingClasses.push(className);
+                    }
+                }
                 
                 // Check if mobile systems are loaded (if needed)
                 if (platformDetector.shouldUseMobileMode()) {
@@ -648,7 +673,7 @@
                     for (const className of mobileClasses) {
                         if (typeof window[className] === 'undefined') {
                             allLoaded = false;
-                            break;
+                            missingClasses.push(className);
                         }
                     }
                 }
@@ -659,21 +684,40 @@
                     for (const className of tacticalClasses) {
                         if (typeof window[className] === 'undefined') {
                             allLoaded = false;
-                            break;
+                            missingClasses.push(className);
                         }
                     }
                 }
                 
                 if (allLoaded) {
-                    console.log('✅ All required scripts loaded');
+                    console.log('✅ All required scripts loaded successfully');
+                    console.log(`📋 Core classes available: ${coreClasses.filter(c => typeof window[c] !== 'undefined').length}/${coreClasses.length}`);
                     return;
+                }
+                
+                // Log missing classes every second for debugging
+                if (waitTime % 1000 === 0 && missingClasses.length > 0) {
+                    console.log(`⏳ Waiting for classes: ${missingClasses.join(', ')}`);
                 }
                 
                 await new Promise(resolve => setTimeout(resolve, checkInterval));
                 waitTime += checkInterval;
             }
             
-            console.warn('⚠️ Some scripts may not have loaded completely');
+            // Final check and detailed reporting
+            const finalMissing = [];
+            for (const className of coreClasses) {
+                if (typeof window[className] === 'undefined') {
+                    finalMissing.push(className);
+                }
+            }
+            
+            if (finalMissing.length > 0) {
+                console.error('❌ Failed to load required classes:', finalMissing);
+                console.warn('⚠️ Game may not function properly with missing classes');
+            } else {
+                console.log('✅ All core classes loaded after timeout');
+            }
         }
         
         /**
@@ -1099,6 +1143,48 @@
         }
         
         /**
+         * Log script loading diagnostics for debugging
+         */
+        function logScriptLoadingDiagnostics() {
+            const requiredClasses = [
+                'PlatformDetector', 'SystemLoader', 
+                'Player', 'Castle', 'Army',
+                'ProductionSystem', 'CombatSystem', 'MovementSystem', 'AISystem',
+                'InputHandler', 'Renderer', 'Game'
+            ];
+            
+            const loaded = [];
+            const missing = [];
+            
+            requiredClasses.forEach(className => {
+                if (typeof window[className] !== 'undefined') {
+                    loaded.push(className);
+                } else {
+                    missing.push(className);
+                }
+            });
+            
+            console.log(`   ✅ Loaded (${loaded.length}/${requiredClasses.length}):`, loaded);
+            if (missing.length > 0) {
+                console.log(`   ❌ Missing (${missing.length}):`, missing);
+            }
+            
+            // Check for script errors
+            const scriptTags = document.querySelectorAll('script[src]');
+            console.log(`   📄 Script tags found: ${scriptTags.length}`);
+            
+            if (typeof scriptErrors !== 'undefined' && scriptErrors.length > 0) {
+                console.log(`   💥 Script errors: ${scriptErrors.length}`, scriptErrors);
+            }
+            
+            // List all constructor-like objects in window
+            const windowConstructors = Object.getOwnPropertyNames(window)
+                .filter(prop => typeof window[prop] === 'function' && prop[0] === prop[0].toUpperCase())
+                .filter(prop => prop.length > 2 && !['Object', 'Array', 'Function', 'String', 'Number', 'Boolean', 'Date', 'RegExp', 'Error'].includes(prop));
+            console.log(`   🏗️ Available constructors: ${windowConstructors.slice(0, 10).join(', ')}${windowConstructors.length > 10 ? '...' : ''}`);
+        }
+        
+        /**
          * Utility functions
          */
         function updateLoadingProgress(percent, text) {
@@ -1128,10 +1214,30 @@
         }
         
         /**
+         * Track script loading errors
+         */
+        const scriptErrors = [];
+        window.addEventListener('error', (event) => {
+            if (event.filename && event.filename.includes('.js')) {
+                scriptErrors.push({
+                    file: event.filename,
+                    line: event.lineno,
+                    error: event.message
+                });
+                console.error(`💥 Script error in ${event.filename}:${event.lineno} - ${event.message}`);
+            }
+        });
+        
+        /**
          * Initialize game when page loads
          */
         window.addEventListener('load', () => {
             console.log('🏰 MyHoMM starting...');
+            
+            // Report any script errors
+            if (scriptErrors.length > 0) {
+                console.error('🚨 Script errors detected during loading:', scriptErrors);
+            }
             
             // Add small delay to ensure all scripts are loaded
             setTimeout(() => {

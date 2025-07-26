@@ -422,6 +422,9 @@ class Army {
     }
 }
 
+console.log('🔍 Army class defined, checking availability:', typeof Army, typeof window.Army);
+window.Army = Army; // Explicitly ensure it's in global scope
+
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Army;

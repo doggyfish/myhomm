@@ -4,9 +4,8 @@
  */
 
 // Phase 4: Enhanced unit types building on mobile foundation
-const PHASE4_ENHANCED_UNITS = {
-    // Import existing mobile unit types
-    ...MOBILE_UNIT_TYPES,
+// Note: MOBILE_UNIT_TYPES will be accessed through mobileCombatSystem instance
+const PHASE4_ENHANCED_UNITS_BASE = {
     
     // New Phase 4 advanced units
     SIEGE_ENGINES: {
@@ -189,6 +188,9 @@ class TacticalCombatSystem {
         this.game = mobileCombatSystem.game;
         this.mobileUI = mobileCombatSystem.mobileUI;
         
+        // Enhanced unit types combining mobile and tactical
+        this.enhancedUnitTypes = this.createEnhancedUnitTypes();
+        
         // Tactical state management
         this.tacticalState = {
             formationsEnabled: true,
@@ -208,6 +210,21 @@ class TacticalCombatSystem {
         this.tacticalAI = new TacticalAI(this);
         
         console.log('⚔️ TacticalCombatSystem initialized - Phase 4 tactical enhancements active');
+    }
+    
+    /**
+     * Create enhanced unit types by combining mobile and tactical units
+     */
+    createEnhancedUnitTypes() {
+        // Get mobile unit types from the mobile combat system
+        const mobileUnitTypes = this.mobileCombat.getUnitTypeInfo ? 
+            this.mobileCombat.constructor.MOBILE_UNIT_TYPES || {} : {};
+            
+        // Combine with Phase 4 enhanced units
+        return {
+            ...mobileUnitTypes,
+            ...PHASE4_ENHANCED_UNITS_BASE
+        };
     }
     
     /**

@@ -321,6 +321,9 @@ class InputHandler {
     }
 }
 
+console.log('🔍 InputHandler class defined, checking availability:', typeof InputHandler, typeof window.InputHandler);
+window.InputHandler = InputHandler; // Explicitly ensure it's in global scope
+
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = InputHandler;

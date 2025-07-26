@@ -511,10 +511,10 @@ class CastleSpecializationSystem {
      * Create upgrade interface
      */
     createUpgradeInterface() {
-        const interface = document.createElement('div');
-        interface.id = 'castleUpgradeInterface';
-        interface.className = 'upgrade-interface';
-        interface.innerHTML = `
+        const upgradeInterface = document.createElement('div');
+        upgradeInterface.id = 'castleUpgradeInterface';
+        upgradeInterface.className = 'upgrade-interface';
+        upgradeInterface.innerHTML = `
             <div class="interface-header">
                 <h3>⬆️ Castle Upgrades</h3>
                 <button class="interface-close" onclick="castleSpecialization.hideUpgradeInterface()">✕</button>
@@ -531,8 +531,8 @@ class CastleSpecializationSystem {
             </div>
         `;
         
-        document.body.appendChild(interface);
-        this.ui.upgradeInterface = interface;
+        document.body.appendChild(upgradeInterface);
+        this.ui.upgradeInterface = upgradeInterface;
     }
     
     /**

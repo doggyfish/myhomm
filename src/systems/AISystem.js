@@ -83,32 +83,51 @@ class AISystem {
      * @param {string} personality - AI personality type
      */
     registerAIPlayer(player, difficulty = 'medium', personality = null) {
-        if (!player.isHuman) {
-            // Assign personality based on player settings or random selection
-            const assignedPersonality = personality || 
-                                       player.aiPersonality || 
-                                       this.selectRandomPersonality();
-            
-            const personalityData = this.personalityTypes[assignedPersonality] || this.personalityTypes.balanced;
-            
-            this.aiPlayers.set(player.id, {
-                player: player,
-                difficulty: difficulty,
-                personality: assignedPersonality,
-                personalityData: personalityData,
-                settings: this.difficultySettings[difficulty],
-                lastAction: Date.now(),
-                lastUpgradeCheck: Date.now(),
-                strategy: this.selectStrategy(player, difficulty),
-                targets: [],
-                state: 'evaluating', // evaluating, attacking, defending, expanding
-                goldSpentOnUpgrades: 0,
-                upgradeHistory: [],
-                decisionHistory: []
-            });
-            
-            console.log(`Registered ${player.name} as ${difficulty} ${personalityData.name}`);
+        // Validate player object
+        if (!player || player.isHuman) {
+            console.warn(`AISystem: Cannot register AI player - invalid player or isHuman=${player?.isHuman}`);
+            return;
         }
+        
+        // Validate difficulty setting exists
+        if (!this.difficultySettings[difficulty]) {
+            console.warn(`AISystem: Invalid difficulty '${difficulty}', using 'medium'`);
+            difficulty = 'medium';
+        }
+        
+        // Assign personality based on player settings or random selection
+        const assignedPersonality = personality || 
+                                   player.aiPersonality || 
+                                   this.selectRandomPersonality();
+        
+        const personalityData = this.personalityTypes[assignedPersonality] || this.personalityTypes.balanced;
+        
+        // Create AI settings with fallback
+        const aiSettings = this.difficultySettings[difficulty] || this.difficultySettings.medium;
+        
+        // Validate that we have valid settings
+        if (!aiSettings || !aiSettings.reactionTime) {
+            console.error(`AISystem: Invalid AI settings for difficulty '${difficulty}'`);
+            return;
+        }
+        
+        this.aiPlayers.set(player.id, {
+            player: player,
+            difficulty: difficulty,
+            personality: assignedPersonality,
+            personalityData: personalityData,
+            settings: aiSettings,
+            lastAction: Date.now(),
+            lastUpgradeCheck: Date.now(),
+            strategy: this.selectStrategy(player, difficulty),
+            targets: [],
+            state: 'evaluating', // evaluating, attacking, defending, expanding
+            goldSpentOnUpgrades: 0,
+            upgradeHistory: [],
+            decisionHistory: []
+        });
+        
+        console.log(`✅ Registered ${player.name} as ${difficulty} ${personalityData.name} AI with settings:`, aiSettings);
     }
     
     /**
@@ -167,7 +186,8 @@ class AISystem {
             return [];
         }
         
-        const { player, settings, strategy } = aiData;
+        const { player, strategy } = aiData;
+        let { settings } = aiData;
         const actions = [];
         
         // Defensive programming: Check for null/undefined settings
@@ -176,6 +196,7 @@ class AISystem {
             // Try to recover by re-initializing settings
             if (player && aiData.difficulty) {
                 aiData.settings = this.difficultySettings[aiData.difficulty] || this.difficultySettings.medium;
+                settings = aiData.settings; // Update local reference
                 console.log(`AISystem: Recovered settings for ${player.name}:`, aiData.settings);
             } else {
                 // Fallback to safe defaults
@@ -186,6 +207,7 @@ class AISystem {
                     economicFocus: 0.5,
                     defenseThreshold: 0.3
                 };
+                settings = aiData.settings; // Update local reference
                 console.log(`AISystem: Used fallback settings for player`);
             }
         }
@@ -833,6 +855,9 @@ class AISystem {
         };
     }
 }
+
+console.log('🔍 AISystem class defined, checking availability:', typeof AISystem, typeof window.AISystem);
+window.AISystem = AISystem; // Explicitly ensure it's in global scope
 
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {

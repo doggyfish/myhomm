@@ -2,6 +2,7 @@
  * Main Game class that coordinates all game systems and entities
  * This is the central controller for the MyHoMM game
  */
+console.log('🔍 Game.js executing, about to define Game class');
 class Game {
     constructor(canvasId = 'gameCanvas') {
         // Core game properties
@@ -1328,6 +1329,9 @@ class Game {
         console.log('Game destroyed');
     }
 }
+
+console.log('🔍 Game class defined, checking availability:', typeof Game, typeof window.Game);
+window.Game = Game; // Explicitly ensure it's in global scope
 
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {

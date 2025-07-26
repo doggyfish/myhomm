@@ -451,6 +451,9 @@ class Renderer {
     }
 }
 
+console.log('🔍 Renderer class defined, checking availability:', typeof Renderer, typeof window.Renderer);
+window.Renderer = Renderer; // Explicitly ensure it's in global scope
+
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = Renderer;

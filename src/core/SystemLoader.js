@@ -72,11 +72,16 @@ class SystemLoader {
         for (const className of coreClasses) {
             if (typeof window[className] !== 'undefined') {
                 this.loadedSystems.add(className);
-                console.log(`✅ ${className} loaded`);
+                console.log(`✅ ${className} loaded successfully`);
             } else {
                 this.failedSystems.add(className);
-                console.error(`❌ ${className} failed to load`);
+                console.error(`❌ ${className} failed to load - check script tag and syntax`);
+                console.error(`🔍 Window object contains: ${Object.getOwnPropertyNames(window).filter(prop => prop.includes('Game') || prop.includes('game')).join(', ') || 'no Game-related properties'}`);
             }
+        }
+        
+        if (this.failedSystems.size > 0) {
+            console.error('💥 Core system loading failed. Available window properties:', Object.getOwnPropertyNames(window).filter(prop => prop[0] === prop[0].toUpperCase()).slice(0, 10));
         }
     }
     
@@ -91,11 +96,30 @@ class SystemLoader {
         for (const className of entityClasses) {
             if (typeof window[className] !== 'undefined') {
                 this.loadedSystems.add(className);
-                console.log(`✅ ${className} loaded`);
+                console.log(`✅ ${className} loaded successfully`);
+                
+                // Validate the class has essential methods
+                const classRef = window[className];
+                if (typeof classRef === 'function' && classRef.prototype) {
+                    console.log(`   🔧 ${className} constructor and prototype validated`);
+                } else {
+                    console.warn(`   ⚠️ ${className} may not be a proper class constructor`);
+                }
             } else {
                 this.failedSystems.add(className);
-                console.error(`❌ ${className} failed to load`);
+                console.error(`❌ ${className} failed to load - check src/entities/${className}.js`);
+                console.error(`🔍 Similar classes available: ${Object.getOwnPropertyNames(window).filter(prop => prop.toLowerCase().includes(className.toLowerCase())).join(', ') || 'none found'}`);
             }
+        }
+        
+        if (this.failedSystems.size > 0) {
+            console.error('💥 Entity system loading failed. Checking all loaded classes...');
+            const loadedClasses = Object.getOwnPropertyNames(window).filter(prop => 
+                typeof window[prop] === 'function' && 
+                prop[0] === prop[0].toUpperCase() && 
+                prop.length > 2
+            );
+            console.error('🔍 Available class-like objects:', loadedClasses.slice(0, 15));
         }
     }
     
@@ -110,10 +134,20 @@ class SystemLoader {
         for (const className of systemClasses) {
             if (typeof window[className] !== 'undefined') {
                 this.loadedSystems.add(className);
-                console.log(`✅ ${className} loaded`);
+                console.log(`✅ ${className} loaded successfully`);
+                
+                // Test instantiation capability
+                try {
+                    const TestInstance = window[className];
+                    if (typeof TestInstance === 'function') {
+                        console.log(`   🔧 ${className} constructor validated`);
+                    }
+                } catch (error) {
+                    console.warn(`   ⚠️ ${className} constructor may have issues:`, error.message);
+                }
             } else {
                 this.failedSystems.add(className);
-                console.error(`❌ ${className} failed to load`);
+                console.error(`❌ ${className} failed to load - check src/systems/${className}.js`);
             }
         }
     }
@@ -129,11 +163,17 @@ class SystemLoader {
         for (const className of uiClasses) {
             if (typeof window[className] !== 'undefined') {
                 this.loadedSystems.add(className);
-                console.log(`✅ ${className} loaded`);
+                console.log(`✅ ${className} loaded successfully`);
             } else {
                 this.failedSystems.add(className);
-                console.error(`❌ ${className} failed to load`);
+                console.error(`❌ ${className} failed to load - check src/ui/${className}.js`);
             }
+        }
+        
+        // Final summary
+        console.log(`📊 System loading summary: ${this.loadedSystems.size} loaded, ${this.failedSystems.size} failed`);
+        if (this.failedSystems.size > 0) {
+            console.error('🚨 Failed systems:', Array.from(this.failedSystems));
         }
     }
     
@@ -424,6 +464,9 @@ class SystemLoader {
         }
     }
 }
+
+console.log('🔍 SystemLoader class defined, checking availability:', typeof SystemLoader, typeof window.SystemLoader);
+window.SystemLoader = SystemLoader; // Explicitly ensure it's in global scope
 
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {

@@ -217,7 +217,8 @@ class MobilePerformanceManager {
             
             // Start battery optimization monitoring
             this.intervals.batteryMonitoring = setInterval(() => {
-                this.updateBatteryMetrics(battery);\n                this.optimizeForBattery();
+                this.updateBatteryMetrics(battery);
+                              this.optimizeForBattery();
             }, 10000); // Check every 10 seconds
             
         }).catch(error => {

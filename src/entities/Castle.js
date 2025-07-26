@@ -1,6 +1,7 @@
 /**
  * Castle class representing a fortress that produces units and serves as a strategic point
  */
+console.log('🔍 Castle.js executing, about to define Castle class');
 class Castle {
     /**
      * Create a Castle instance
@@ -529,6 +530,9 @@ class Castle {
         return castle;
     }
 }
+
+console.log('🔍 Castle class defined, checking availability:', typeof Castle, typeof window.Castle);
+window.Castle = Castle; // Explicitly ensure it's in global scope
 
 // Export for module system
 if (typeof module !== 'undefined' && module.exports) {
