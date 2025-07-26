@@ -165,6 +165,8 @@
             <h2>🔧 System Initialization Tests</h2>
             <div class="test-controls">
                 <button class="test-btn" onclick="runSystemTests()">Run System Tests</button>
+                <button class="test-btn" onclick="testPlatformDetection()">Test Platform Detection</button>
+                <button class="test-btn" onclick="testConditionalLoading()">Test Conditional Loading</button>
                 <button class="test-btn" onclick="testAISettings()">Test AI Settings</button>
                 <button class="test-btn" onclick="testMemoryLeaks()">Memory Leak Test</button>
                 <button class="test-btn danger" onclick="simulateNullSettings()">Simulate Null Settings Bug</button>
@@ -362,15 +364,24 @@
                     log('system', 'AI System class: FAILED', 'error');
                 }
 
-                // Test mobile systems
+                // Test mobile systems (conditional based on platform)
                 const mobileClasses = ['TouchManager', 'MobileUIManager', 'MobileGameManager'];
                 mobileClasses.forEach(className => {
-                    if (typeof window[className] !== 'undefined') {
-                        addResult('system', className, 'pass', `${className} loaded successfully`);
-                        log('system', `${className}: PASSED`, 'success');
+                    const isLoaded = typeof window[className] !== 'undefined';
+                    const shouldBeLoaded = testPlatformDetector.shouldUseMobileMode();
+                    
+                    if (shouldBeLoaded && isLoaded) {
+                        addResult('system', className, 'pass', `${className} correctly loaded for mobile mode`);
+                        log('system', `${className}: PASSED (mobile mode)`, 'success');
+                    } else if (!shouldBeLoaded && !isLoaded) {
+                        addResult('system', className, 'pass', `${className} correctly skipped for desktop mode`);
+                        log('system', `${className}: PASSED (desktop mode - skipped)`, 'success');
+                    } else if (shouldBeLoaded && !isLoaded) {
+                        addResult('system', className, 'fail', `${className} should be loaded for mobile mode but not found`);
+                        log('system', `${className}: FAILED (missing for mobile)`, 'error');
                     } else {
-                        addResult('system', className, 'fail', `${className} not found`);
-                        log('system', `${className}: FAILED`, 'error');
+                        addResult('system', className, 'warning', `${className} loaded but not needed for desktop mode`);
+                        log('system', `${className}: WARNING (unnecessary for desktop)`, 'warning');
                     }
                 });
 
@@ -963,6 +974,26 @@
             log('mobile', 'Testing touch manager...', 'info');
             
             try {
+                const shouldUseMobile = testPlatformDetector.shouldUseMobileMode();
+                const touchManagerExists = typeof TouchManager !== 'undefined';
+                
+                if (!shouldUseMobile && !touchManagerExists) {
+                    addResult('mobile', 'Touch Manager Skip', 'pass', 'TouchManager correctly not loaded for desktop mode');
+                    log('mobile', 'TouchManager: PASSED (desktop mode - correctly skipped)', 'success');
+                    return;
+                } else if (!shouldUseMobile && touchManagerExists) {
+                    addResult('mobile', 'Touch Manager Skip', 'warning', 'TouchManager loaded but not needed for desktop');
+                    log('mobile', 'TouchManager: WARNING (loaded unnecessarily for desktop)', 'warning');
+                    return;
+                } else if (shouldUseMobile && !touchManagerExists) {
+                    addResult('mobile', 'Touch Manager Creation', 'fail', 'TouchManager should be loaded for mobile mode');
+                    log('mobile', 'TouchManager: FAILED (missing for mobile mode)', 'error');
+                    return;
+                }
+                
+                // Mobile mode - test TouchManager functionality
+                log('mobile', 'Testing TouchManager functionality for mobile mode...', 'info');
+                
                 // Create a test canvas
                 const canvas = document.createElement('canvas');
                 canvas.width = 400;
@@ -979,8 +1010,8 @@
                 const touchManager = new TouchManager(canvas, mockGame);
                 
                 if (touchManager) {
-                    addResult('mobile', 'Touch Manager Creation', 'pass', 'TouchManager created successfully');
-                    log('mobile', 'TouchManager creation: PASSED', 'success');
+                    addResult('mobile', 'Touch Manager Creation', 'pass', 'TouchManager created successfully for mobile mode');
+                    log('mobile', 'TouchManager creation: PASSED (mobile mode)', 'success');
                     
                     // Test gesture detection
                     if (touchManager.gestures) {
@@ -1016,6 +1047,26 @@
             log('mobile', 'Testing mobile UI...', 'info');
             
             try {
+                const shouldUseMobile = testPlatformDetector.shouldUseMobileMode();
+                const mobileUIExists = typeof MobileUIManager !== 'undefined';
+                
+                if (!shouldUseMobile && !mobileUIExists) {
+                    addResult('mobile', 'Mobile UI Skip', 'pass', 'MobileUIManager correctly not loaded for desktop mode');
+                    log('mobile', 'MobileUIManager: PASSED (desktop mode - correctly skipped)', 'success');
+                    return;
+                } else if (!shouldUseMobile && mobileUIExists) {
+                    addResult('mobile', 'Mobile UI Skip', 'warning', 'MobileUIManager loaded but not needed for desktop');
+                    log('mobile', 'MobileUIManager: WARNING (loaded unnecessarily for desktop)', 'warning');
+                    return;
+                } else if (shouldUseMobile && !mobileUIExists) {
+                    addResult('mobile', 'Mobile UI Creation', 'fail', 'MobileUIManager should be loaded for mobile mode');
+                    log('mobile', 'MobileUIManager: FAILED (missing for mobile mode)', 'error');
+                    return;
+                }
+                
+                // Mobile mode - test MobileUIManager functionality
+                log('mobile', 'Testing MobileUIManager functionality for mobile mode...', 'info');
+                
                 // Mock dependencies
                 const mockGame = { mobile: { isActive: true } };
                 const mockTouchManager = { enable: () => {}, disable: () => {} };
@@ -1023,8 +1074,8 @@
                 const mobileUI = new MobileUIManager(mockGame, mockTouchManager);
                 
                 if (mobileUI) {
-                    addResult('mobile', 'Mobile UI Creation', 'pass', 'MobileUIManager created successfully');
-                    log('mobile', 'MobileUIManager creation: PASSED', 'success');
+                    addResult('mobile', 'Mobile UI Creation', 'pass', 'MobileUIManager created successfully for mobile mode');
+                    log('mobile', 'MobileUIManager creation: PASSED (mobile mode)', 'success');
                     
                     // Test responsive design
                     if (typeof mobileUI.updateLayout === 'function') {
