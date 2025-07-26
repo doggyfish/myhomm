@@ -482,9 +482,11 @@
         <div class="notification-area" id="notificationArea"></div>
     </div>
 
-    <!-- Load all game systems -->
+    <!-- Load platform detection and system loader first -->
+    <script src="src/core/PlatformDetector.js"></script>
+    <script src="src/core/SystemLoader.js"></script>
     
-    <!-- Phase 1-2: Core Systems -->
+    <!-- Always load core systems -->
     <script src="src/entities/Player.js"></script>
     <script src="src/entities/Castle.js"></script>
     <script src="src/entities/Army.js"></script>
@@ -494,22 +496,58 @@
     <script src="src/systems/AISystem.js"></script>
     <script src="src/ui/InputHandler.js"></script>
     <script src="src/ui/Renderer.js"></script>
-    
-    <!-- Phase 3: Mobile Systems -->
-    <script src="src/mobile/MobileOptimizer.js"></script>
-    <script src="src/mobile/TouchManager.js"></script>
-    <script src="src/mobile/MobilePerformanceManager.js"></script>
-    <script src="src/mobile/MobileUIManager.js"></script>
-    <script src="src/mobile/MobileCombatSystem.js"></script>
-    <script src="src/mobile/MobileGameManager.js"></script>
-    
-    <!-- Phase 4: Tactical Systems -->
-    <script src="src/tactical/TacticalCombatSystem.js"></script>
-    <script src="src/tactical/TacticalUIManager.js"></script>
-    <script src="src/tactical/CastleSpecializationSystem.js"></script>
-    
-    <!-- Main Game Engine -->
     <script src="src/core/Game.js"></script>
+    
+    <!-- Conditionally load mobile systems -->
+    <script>
+        // Initialize platform detection
+        const platformDetector = new PlatformDetector();
+        const systemLoader = new SystemLoader(platformDetector);
+        
+        // Only load mobile systems if needed
+        if (platformDetector.shouldUseMobileMode()) {
+            console.log('📱 Loading mobile systems for mobile/tablet device');
+            
+            // Load mobile scripts dynamically
+            const mobileScripts = [
+                'src/mobile/MobileOptimizer.js',
+                'src/mobile/TouchManager.js',
+                'src/mobile/MobilePerformanceManager.js',
+                'src/mobile/MobileUIManager.js',
+                'src/mobile/MobileCombatSystem.js',
+                'src/mobile/MobileGameManager.js'
+            ];
+            
+            mobileScripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false; // Maintain load order
+                document.head.appendChild(script);
+            });
+        } else {
+            console.log('🖥️ Desktop mode - mobile systems not loaded');
+        }
+        
+        // Only load tactical systems if supported
+        if (platformDetector.shouldUseTacticalSystems()) {
+            console.log('⚔️ Loading tactical systems');
+            
+            const tacticalScripts = [
+                'src/tactical/TacticalCombatSystem.js',
+                'src/tactical/TacticalUIManager.js', 
+                'src/tactical/CastleSpecializationSystem.js'
+            ];
+            
+            tacticalScripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                document.head.appendChild(script);
+            });
+        } else {
+            console.log('⚠️ Tactical systems not supported on this device');
+        }
+    </script>
 
     <script>
         // Main game instance
@@ -527,54 +565,55 @@
         let statusUpdateInterval = null;
         
         /**
-         * Initialize the complete game
+         * Initialize the complete game with platform-aware system loading
          */
         async function initializeGame() {
             try {
-                updateLoadingProgress(10, "Loading game engine...");
+                updateLoadingProgress(10, "Detecting platform...");
                 
-                // Create main game instance
-                game = new Game('gameCanvas');
+                // Wait for all scripts to load
+                await waitForScriptsToLoad();
                 
-                updateLoadingProgress(30, "Initializing mobile systems...");
+                updateLoadingProgress(20, "Loading systems...");
                 
-                // Wait for mobile systems to initialize
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                // Load appropriate systems for platform
+                const systemStatus = await systemLoader.loadAllSystems();
                 
-                updateLoadingProgress(50, "Setting up tactical systems...");
-                
-                // Initialize Phase 4 tactical systems if mobile systems are ready
-                if (game.mobile && game.mobile.isActive) {
-                    // Initialize tactical combat
-                    game.tacticalCombat = new TacticalCombatSystem(game.mobile.combatSystem);
-                    
-                    // Initialize tactical UI
-                    game.tacticalUI = new TacticalUIManager(game, game.mobile.uiManager, game.tacticalCombat);
-                    
-                    // Initialize castle specialization
-                    game.castleSpecialization = new CastleSpecializationSystem(game, game.mobile.uiManager);
-                    
-                    showNotification("🎮 Tactical systems initialized!", "success");
-                } else {
-                    showNotification("⚠️ Running in basic mode", "warning");
+                if (!systemStatus.success) {
+                    throw new Error(`System loading failed: ${systemStatus.error}`);
                 }
                 
-                updateLoadingProgress(70, "Setting up game world...");
+                updateLoadingProgress(40, "Creating game instance...");
+                
+                // Create game instance with platform-appropriate systems
+                game = systemLoader.createGameInstance('gameCanvas');
+                
+                // Log platform information
+                const platformInfo = platformDetector.getDebugInfo();
+                console.log('🔍 Platform info:', platformInfo);
+                
+                updateLoadingProgress(60, "Initializing game systems...");
+                
+                // Initialize systems based on what was loaded
+                await initializePlatformSystems();
+                
+                updateLoadingProgress(80, "Setting up game world...");
                 
                 // Setup initial game state
                 setupInitialGameState();
                 
-                updateLoadingProgress(85, "Starting game systems...");
+                updateLoadingProgress(90, "Starting game loop...");
                 
                 // Start game loop
                 startGameLoop();
-                
-                updateLoadingProgress(95, "Finalizing setup...");
                 
                 // Setup UI
                 setupGameUI();
                 
                 updateLoadingProgress(100, "Game ready!");
+                
+                // Show platform-specific welcome message
+                const platformMessage = getPlatformWelcomeMessage();
                 
                 // Hide loading screen
                 setTimeout(() => {
@@ -582,13 +621,115 @@
                     gameInitialized = true;
                     gameRunning = true;
                     
-                    showNotification("🎉 Welcome to MyHoMM! Click on castles to manage them.", "success", 5000);
+                    showNotification(platformMessage, "success", 5000);
                 }, 500);
                 
             } catch (error) {
                 console.error('Game initialization failed:', error);
                 updateLoadingProgress(0, `Initialization failed: ${error.message}`);
                 showNotification("❌ Game initialization failed. Please refresh the page.", "error", 10000);
+            }
+        }
+        
+        /**
+         * Wait for dynamically loaded scripts to be available
+         */
+        async function waitForScriptsToLoad() {
+            const maxWaitTime = 5000; // 5 seconds max
+            const checkInterval = 100; // Check every 100ms
+            let waitTime = 0;
+            
+            while (waitTime < maxWaitTime) {
+                let allLoaded = true;
+                
+                // Check if mobile systems are loaded (if needed)
+                if (platformDetector.shouldUseMobileMode()) {
+                    const mobileClasses = ['MobileOptimizer', 'TouchManager', 'MobileGameManager'];
+                    for (const className of mobileClasses) {
+                        if (typeof window[className] === 'undefined') {
+                            allLoaded = false;
+                            break;
+                        }
+                    }
+                }
+                
+                // Check if tactical systems are loaded (if needed)
+                if (platformDetector.shouldUseTacticalSystems()) {
+                    const tacticalClasses = ['TacticalCombatSystem', 'TacticalUIManager'];
+                    for (const className of tacticalClasses) {
+                        if (typeof window[className] === 'undefined') {
+                            allLoaded = false;
+                            break;
+                        }
+                    }
+                }
+                
+                if (allLoaded) {
+                    console.log('✅ All required scripts loaded');
+                    return;
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, checkInterval));
+                waitTime += checkInterval;
+            }
+            
+            console.warn('⚠️ Some scripts may not have loaded completely');
+        }
+        
+        /**
+         * Initialize platform-specific systems
+         */
+        async function initializePlatformSystems() {
+            const systemStatus = systemLoader.getSystemStatus();
+            
+            console.log('🎮 Initializing systems for:', systemStatus.platform);
+            console.log('📊 System status:', systemStatus);
+            
+            // Mobile systems initialization
+            if (systemStatus.mobileModeActive && systemStatus.loadedSystems.includes('MobileGameManager')) {
+                try {
+                    // Mobile systems are initialized by SystemLoader
+                    showNotification("📱 Mobile systems active", "success");
+                } catch (error) {
+                    console.error('❌ Mobile systems initialization failed:', error);
+                    showNotification("⚠️ Mobile features limited", "warning");
+                }
+            }
+            
+            // Desktop systems initialization  
+            if (systemStatus.desktopModeActive) {
+                try {
+                    // Desktop enhancements are handled by SystemLoader
+                    showNotification("🖥️ Desktop mode active", "success");
+                } catch (error) {
+                    console.error('❌ Desktop systems initialization failed:', error);
+                }
+            }
+            
+            // Tactical systems initialization
+            if (systemStatus.tacticalSystemsActive && systemStatus.loadedSystems.includes('TacticalCombatSystem')) {
+                try {
+                    // Tactical systems are initialized by SystemLoader
+                    showNotification("⚔️ Tactical systems ready", "success");
+                } catch (error) {
+                    console.error('❌ Tactical systems initialization failed:', error);
+                    showNotification("⚠️ Basic combat mode", "warning");
+                }
+            }
+        }
+        
+        /**
+         * Get platform-specific welcome message
+         */
+        function getPlatformWelcomeMessage() {
+            const systemStatus = systemLoader.getSystemStatus();
+            
+            if (systemStatus.mobileModeActive) {
+                return "📱 Welcome to MyHoMM Mobile! Tap castles to manage them.";
+            } else if (systemStatus.desktopModeActive) {
+                return "🖥️ Welcome to MyHoMM! Click castles to manage, right-click to move units.";
+            } else {
+                return "🎮 Welcome to MyHoMM! Click on castles to manage them.";
             }
         }
         

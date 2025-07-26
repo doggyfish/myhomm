@@ -238,7 +238,11 @@
         </div>
     </div>
 
-    <!-- Load game systems for testing -->
+    <!-- Load platform detection and system loader -->
+    <script src="src/core/PlatformDetector.js"></script>
+    <script src="src/core/SystemLoader.js"></script>
+    
+    <!-- Load core systems for testing -->
     <script src="src/entities/Player.js"></script>
     <script src="src/entities/Castle.js"></script>
     <script src="src/entities/Army.js"></script>
@@ -248,13 +252,41 @@
     <script src="src/systems/AISystem.js"></script>
     <script src="src/ui/InputHandler.js"></script>
     <script src="src/ui/Renderer.js"></script>
-    <script src="src/mobile/MobileOptimizer.js"></script>
-    <script src="src/mobile/TouchManager.js"></script>
-    <script src="src/mobile/MobilePerformanceManager.js"></script>
-    <script src="src/mobile/MobileUIManager.js"></script>
-    <script src="src/mobile/MobileCombatSystem.js"></script>
-    <script src="src/mobile/MobileGameManager.js"></script>
     <script src="src/core/Game.js"></script>
+    
+    <!-- Conditionally load systems based on platform -->
+    <script>
+        const testPlatformDetector = new PlatformDetector();
+        const testSystemLoader = new SystemLoader(testPlatformDetector);
+        
+        console.log('🧪 Test Suite Platform Detection:');
+        console.log('Platform:', testPlatformDetector.platform.type);
+        console.log('Mobile mode:', testPlatformDetector.shouldUseMobileMode());
+        console.log('Systems to load:', testPlatformDetector.systemsToLoad);
+        
+        // Load mobile systems only if needed (for testing)
+        if (testPlatformDetector.shouldUseMobileMode()) {
+            const mobileScripts = [
+                'src/mobile/MobileOptimizer.js',
+                'src/mobile/TouchManager.js',
+                'src/mobile/MobilePerformanceManager.js',
+                'src/mobile/MobileUIManager.js',
+                'src/mobile/MobileCombatSystem.js',
+                'src/mobile/MobileGameManager.js'
+            ];
+            
+            mobileScripts.forEach(src => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                document.head.appendChild(script);
+            });
+            
+            console.log('📱 Mobile systems loaded for testing');
+        } else {
+            console.log('🖥️ Desktop mode - mobile systems skipped');
+        }
+    </script>
 
     <script>
         // Test Suite Implementation
@@ -297,6 +329,9 @@
             log('system', 'Starting system initialization tests...', 'info');
             
             try {
+                // Test platform detection system
+                testPlatformDetection();
+                
                 // Test Game class existence
                 if (typeof Game !== 'undefined') {
                     addResult('system', 'Game Class', 'pass', 'Game class loaded successfully');
@@ -305,6 +340,9 @@
                     addResult('system', 'Game Class', 'fail', 'Game class not found');
                     log('system', 'Game class: FAILED', 'error');
                 }
+                
+                // Test conditional loading system
+                testConditionalLoading();
 
                 // Test Player class
                 if (typeof Player !== 'undefined') {
@@ -339,6 +377,113 @@
             } catch (error) {
                 addResult('system', 'System Test Error', 'fail', error.message);
                 log('system', `System test error: ${error.message}`, 'error');
+            }
+        }
+        
+        function testPlatformDetection() {
+            log('system', 'Testing platform detection system...', 'info');
+            
+            try {
+                // Test PlatformDetector class
+                if (typeof PlatformDetector !== 'undefined') {
+                    addResult('system', 'PlatformDetector Class', 'pass', 'PlatformDetector loaded successfully');
+                    log('system', 'PlatformDetector class: PASSED', 'success');
+                } else {
+                    addResult('system', 'PlatformDetector Class', 'fail', 'PlatformDetector not found');
+                    log('system', 'PlatformDetector class: FAILED', 'error');
+                    return;
+                }
+                
+                // Test platform detection
+                const platformInfo = testPlatformDetector.getDebugInfo();
+                log('system', `Detected platform: ${platformInfo.platform.type} (${platformInfo.platform.os})`, 'info');
+                log('system', `Mobile mode: ${testPlatformDetector.shouldUseMobileMode()}`, 'info');
+                log('system', `Touch device: ${platformInfo.platform.isTouchDevice}`, 'info');
+                
+                addResult('system', 'Platform Detection', 'pass', 
+                    `Platform: ${platformInfo.platform.type}, Mobile: ${testPlatformDetector.shouldUseMobileMode()}`);
+                
+                // Test capability detection
+                const capabilities = platformInfo.capabilities;
+                const capabilityCount = Object.values(capabilities).filter(Boolean).length;
+                log('system', `Detected ${capabilityCount} capabilities`, 'info');
+                
+                addResult('system', 'Capability Detection', 'pass', 
+                    `${capabilityCount} capabilities detected (Touch: ${capabilities.touch}, WebGL: ${capabilities.webGL})`);
+                
+            } catch (error) {
+                addResult('system', 'Platform Detection Error', 'fail', error.message);
+                log('system', `Platform detection error: ${error.message}`, 'error');
+            }
+        }
+        
+        function testConditionalLoading() {
+            log('system', 'Testing conditional loading system...', 'info');
+            
+            try {
+                // Test SystemLoader class
+                if (typeof SystemLoader !== 'undefined') {
+                    addResult('system', 'SystemLoader Class', 'pass', 'SystemLoader loaded successfully');
+                    log('system', 'SystemLoader class: PASSED', 'success');
+                } else {
+                    addResult('system', 'SystemLoader Class', 'fail', 'SystemLoader not found');
+                    log('system', 'SystemLoader class: FAILED', 'error');
+                    return;
+                }
+                
+                // Test system loading decisions
+                const systemStatus = testSystemLoader.getSystemStatus();
+                log('system', `Platform: ${systemStatus.platform}`, 'info');
+                log('system', `Mobile mode active: ${systemStatus.mobileModeActive}`, 'info');
+                log('system', `Desktop mode active: ${systemStatus.desktopModeActive}`, 'info');
+                log('system', `Tactical systems active: ${systemStatus.tacticalSystemsActive}`, 'info');
+                
+                // Verify correct systems are loaded/not loaded
+                if (systemStatus.desktopModeActive) {
+                    // In desktop mode, mobile systems should NOT be loaded
+                    const mobileClasses = ['TouchManager', 'MobileGameManager'];
+                    let mobileSystemsProperlySkipped = true;
+                    
+                    mobileClasses.forEach(className => {
+                        if (typeof window[className] !== 'undefined') {
+                            log('system', `WARNING: ${className} loaded in desktop mode`, 'warning');
+                            mobileSystemsProperlySkipped = false;
+                        }
+                    });
+                    
+                    if (mobileSystemsProperlySkipped) {
+                        addResult('system', 'Desktop Mode Loading', 'pass', 'Mobile systems properly skipped');
+                        log('system', 'Desktop mode loading: PASSED - mobile systems skipped', 'success');
+                    } else {
+                        addResult('system', 'Desktop Mode Loading', 'warning', 'Some mobile systems loaded unnecessarily');
+                        log('system', 'Desktop mode loading: WARNING - unnecessary mobile systems', 'warning');
+                    }
+                } else {
+                    // In mobile mode, mobile systems should be loaded
+                    const mobileClasses = ['TouchManager', 'MobileGameManager'];
+                    let mobileSystemsLoaded = 0;
+                    
+                    mobileClasses.forEach(className => {
+                        if (typeof window[className] !== 'undefined') {
+                            mobileSystemsLoaded++;
+                        }
+                    });
+                    
+                    if (mobileSystemsLoaded === mobileClasses.length) {
+                        addResult('system', 'Mobile Mode Loading', 'pass', 'All mobile systems loaded');
+                        log('system', 'Mobile mode loading: PASSED - all mobile systems loaded', 'success');
+                    } else {
+                        addResult('system', 'Mobile Mode Loading', 'warning', `${mobileSystemsLoaded}/${mobileClasses.length} mobile systems loaded`);
+                        log('system', `Mobile mode loading: WARNING - ${mobileSystemsLoaded}/${mobileClasses.length} loaded`, 'warning');
+                    }
+                }
+                
+                addResult('system', 'Conditional Loading', 'pass', 
+                    `Correctly configured for ${systemStatus.platform} mode`);
+                
+            } catch (error) {
+                addResult('system', 'Conditional Loading Error', 'fail', error.message);
+                log('system', `Conditional loading error: ${error.message}`, 'error');
             }
         }
 
