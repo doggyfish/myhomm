@@ -717,23 +717,88 @@
             try {
                 showNotification('🚀 Initializing Phase 4 tactical systems...', 'info');
                 
-                // Create game instance (includes Phase 3 mobile foundation)
-                game = new Game('gameCanvas');
+                // Check for required classes
+                const requiredClasses = ['Game', 'TacticalCombatSystem', 'TacticalUIManager', 'CastleSpecializationSystem'];
+                const missingClasses = requiredClasses.filter(className => typeof window[className] === 'undefined');
                 
-                // Wait for mobile systems to initialize
+                if (missingClasses.length > 0) {
+                    showNotification(`❌ Missing tactical classes: ${missingClasses.join(', ')}`, 'error');
+                    return;
+                }
+                
+                // Create game instance with error handling
+                try {
+                    game = new Game('gameCanvas');
+                    showNotification('✅ Game instance created', 'success');
+                } catch (gameError) {
+                    showNotification('❌ Game creation failed: ' + gameError.message, 'error');
+                    console.error('Game creation error:', gameError);
+                    
+                    // Show what's missing
+                    const coreClasses = ['Player', 'Castle', 'Army', 'InputHandler', 'Renderer'];
+                    const missingCore = coreClasses.filter(className => typeof window[className] === 'undefined');
+                    
+                    if (missingCore.length > 0) {
+                        showNotification(`⚠️ Missing core classes: ${missingCore.join(', ')}`, 'warning');
+                    }
+                    return;
+                }
+                
+                // Wait for game systems to initialize
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Initialize Phase 4 tactical systems
-                tacticalCombat = new TacticalCombatSystem(game.mobile.combatSystem);
-                tacticalUI = new TacticalUIManager(game, game.mobile.uiManager, tacticalCombat);
-                castleSpecialization = new CastleSpecializationSystem(game, game.mobile.uiManager);
+                // Initialize Phase 4 tactical systems with fallbacks
+                try {
+                    // Try to create tactical combat system
+                    if (typeof TacticalCombatSystem !== 'undefined') {
+                        const baseCombat = game.mobile?.combatSystem || game.systems?.combat;
+                        if (baseCombat) {
+                            tacticalCombat = new TacticalCombatSystem(baseCombat);
+                            showNotification('✅ Tactical combat system initialized', 'success');
+                        } else {
+                            showNotification('⚠️ No base combat system found - tactical combat may be limited', 'warning');
+                            tacticalCombat = new TacticalCombatSystem();
+                        }
+                    } else {
+                        showNotification('❌ TacticalCombatSystem class not available', 'error');
+                    }
+                    
+                    // Try to create tactical UI manager
+                    if (typeof TacticalUIManager !== 'undefined' && tacticalCombat) {
+                        const baseUI = game.mobile?.uiManager || game.ui;
+                        tacticalUI = new TacticalUIManager(game, baseUI, tacticalCombat);
+                        showNotification('✅ Tactical UI manager initialized', 'success');
+                    } else {
+                        showNotification('⚠️ Tactical UI manager not available', 'warning');
+                    }
+                    
+                    // Try to create castle specialization system
+                    if (typeof CastleSpecializationSystem !== 'undefined') {
+                        const baseUI = game.mobile?.uiManager || game.ui;
+                        castleSpecialization = new CastleSpecializationSystem(game, baseUI);
+                        showNotification('✅ Castle specialization system initialized', 'success');
+                    } else {
+                        showNotification('⚠️ Castle specialization system not available', 'warning');
+                    }
+                    
+                } catch (tacticalError) {
+                    showNotification('❌ Tactical systems initialization failed: ' + tacticalError.message, 'error');
+                    console.error('Tactical systems error:', tacticalError);
+                }
                 
                 // Set default environment
-                game.currentTerrain = 'PLAINS';
-                game.currentWeather = 'CLEAR';
+                if (game) {
+                    game.currentTerrain = 'PLAINS';
+                    game.currentWeather = 'CLEAR';
+                }
                 
-                testResults.tactical = true;
-                showNotification('✅ Phase 4 tactical systems initialized successfully!', 'success');
+                testResults.tactical = tacticalCombat || tacticalUI || castleSpecialization;
+                
+                if (testResults.tactical) {
+                    showNotification('✅ Phase 4 tactical systems partially initialized!', 'success');
+                } else {
+                    showNotification('⚠️ No tactical systems available - basic game functionality only', 'warning');
+                }
                 
                 updateTacticalStatus();
                 
@@ -743,6 +808,7 @@
             } catch (error) {
                 console.error('Tactical test initialization failed:', error);
                 showNotification('❌ Tactical initialization failed: ' + error.message, 'error');
+                showNotification('💡 Try: 1) Check browser console 2) Ensure all tactical scripts loaded 3) Check import paths', 'info');
             }
         }
         

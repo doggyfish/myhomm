@@ -57,7 +57,8 @@ class MobileUIManager {
         this.setupAccessibility();
         this.setupUIElementManagers();
         
-        // Apply initial layout\n        this.applyLayout(this.orientation);
+        // Apply initial layout
+        this.applyLayout(this.orientation);
         
         console.log('📱 Mobile UI system initialized');
     }
@@ -254,7 +255,8 @@ class MobileUIManager {
             console.log('♿ High contrast mode enabled');
         }
         
-        // Check for large text preference\n        const prefersLargeText = window.matchMedia('(prefers-reduced-data: reduce)').matches;
+        // Check for large text preference
+        const prefersLargeText = window.matchMedia('(prefers-reduced-data: reduce)').matches;
         if (prefersLargeText) {
             this.uiScale *= 1.2;
             console.log('♿ Large text mode enabled');
@@ -325,7 +327,8 @@ class MobileUIManager {
         // Apply layout
         this.applyLayout(orientation);
         
-        // Remove transition class after animation\n        setTimeout(() => {
+        // Remove transition class after animation
+        setTimeout(() => {
             document.body.classList.remove('ui-transitioning');
         }, 300);
     }

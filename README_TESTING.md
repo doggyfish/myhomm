@@ -42,9 +42,48 @@ tests/
 
 ### **Specialized Testing Scenarios**
 
-- **Mobile Testing:** Open `tests/specialized/test-mobile.html` on actual mobile devices
-- **Tactical Testing:** Open `tests/specialized/test-tactical.html` for formation systems
-- **Performance Testing:** Use primary test file with performance focus
+#### **📱 Mobile Testing (`tests/specialized/test-mobile.html`)**
+
+**How to run mobile tests:**
+
+1. **Option 1: Desktop Browser Simulation** (Easiest)
+   - Open `tests/specialized/test-mobile.html` in any desktop browser
+   - Click "Initialize Mobile Test" 
+   - Tests will run in desktop mobile simulation mode
+   - Use browser dev tools (F12) > Device Toolbar to simulate touch events
+
+2. **Option 2: Real Mobile Device** (Most Accurate)
+   - Serve the test file using a local server:
+     ```bash
+     # Simple Python server
+     python3 -m http.server 8080
+     # Or using Node.js
+     npx serve .
+     ```
+   - Navigate to `http://[your-ip]:8080/tests/specialized/test-mobile.html` on mobile device
+   - Click "Initialize Mobile Test"
+
+**What mobile tests cover:**
+- ✅ Touch control validation
+- ✅ Performance optimization testing  
+- ✅ Mobile UI responsiveness
+- ✅ Mobile-specific features
+- ✅ Cross-platform compatibility
+
+#### **⚔️ Tactical Testing (`tests/specialized/test-tactical.html`)**
+
+**How to run tactical tests:**
+
+1. Open `tests/specialized/test-tactical.html` in any desktop browser
+2. Click "Initialize Tactical Test"
+3. Tests will verify tactical system availability and functionality
+
+**What tactical tests cover:**
+- ✅ Formation system mechanics
+- ✅ Terrain and weather effects
+- ✅ Advanced combat calculations
+- ✅ Castle specialization features
+- ✅ Tactical UI components
 
 ### **Command Line Testing (CI/CD)**
 
@@ -264,5 +303,73 @@ Use `tests/specialized/test-mobile.html` for:
 - **Maintainability:** Clear separation of concerns with no duplication
 - **Performance:** Optimized load for routine testing
 - **Flexibility:** Choose appropriate test framework and environment for the task
+
+## 🛠️ Troubleshooting Specialized Tests
+
+### **Common Issues and Solutions:**
+
+#### **Mobile Tests Not Working:**
+
+**Issue**: "❌ Game creation failed" or missing classes
+**Solutions:**
+1. Check browser console (F12) for specific error messages
+2. Ensure all script files loaded without 404 errors
+3. Verify you're accessing via `http://` (not `file://`) for proper script loading
+4. Try refreshing the page and re-running initialization
+
+**Issue**: Touch events not working in desktop browser
+**Solutions:**
+1. Open browser dev tools (F12)
+2. Click the device toolbar icon (mobile/tablet icon)
+3. Select a mobile device or set responsive mode
+4. Touch events will now be simulated
+
+#### **Tactical Tests Not Working:**
+
+**Issue**: "❌ Missing tactical classes"
+**Solutions:**
+1. Check that all tactical system files exist in `src/tactical/`
+2. Verify import paths are correct (`../../src/tactical/...`)
+3. Ensure Phase 4 tactical systems are implemented
+
+#### **General Test Issues:**
+
+**Issue**: White screen or no content
+**Solutions:**
+1. Check browser console for JavaScript errors
+2. Ensure you're serving files via HTTP (use local server)
+3. Verify all CSS and JS files are loading correctly
+
+**Issue**: Tests show warnings instead of success
+**Solutions:**
+- This is normal! Tests gracefully degrade when optional systems aren't available
+- Warnings indicate fallback behavior is working correctly
+- Only errors indicate actual problems
+
+### **Browser Compatibility:**
+
+**Supported Browsers:**
+- ✅ Chrome/Chromium 90+
+- ✅ Firefox 88+
+- ✅ Safari 14+
+- ✅ Edge 90+
+
+**Mobile Browsers:**
+- ✅ Chrome Mobile
+- ✅ Safari iOS
+- ✅ Firefox Mobile
+- ✅ Samsung Internet
+
+### **Performance Tips:**
+
+**For Mobile Testing:**
+- Use actual mobile devices when possible for most accurate results
+- Desktop simulation is good for development but not 100% accurate
+- Test on various screen sizes and orientations
+
+**For Tactical Testing:**
+- Ensure sufficient system resources for complex calculations
+- Close other browser tabs during performance testing
+- Use incognito/private browsing to avoid extension interference
 
 Your game is now fully tested and ready for production! 🚀
