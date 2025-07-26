@@ -134,8 +134,19 @@ class AISystem {
         }
         
         this.aiPlayers.forEach((aiData, playerId) => {
-            const playerActions = this.updateAIPlayer(aiData, gameState, currentTime);
-            actions.push(...playerActions);
+            try {
+                const playerActions = this.updateAIPlayer(aiData, gameState, currentTime);
+                if (Array.isArray(playerActions)) {
+                    actions.push(...playerActions);
+                } else {
+                    console.warn(`AISystem: Invalid actions returned for player ${playerId}`);
+                }
+            } catch (error) {
+                console.error(`AISystem: Error updating AI player ${playerId}:`, error);
+                // Remove corrupted AI data to prevent repeated errors
+                console.log(`AISystem: Removing corrupted AI data for player ${playerId}`);
+                this.aiPlayers.delete(playerId);
+            }
         });
         
         this.lastUpdateTime = currentTime;
@@ -150,8 +161,40 @@ class AISystem {
      * @returns {Array} Actions for this AI player
      */
     updateAIPlayer(aiData, gameState, currentTime) {
+        // Defensive programming: Check for null/undefined aiData
+        if (!aiData) {
+            console.warn('AISystem: Null aiData passed to updateAIPlayer');
+            return [];
+        }
+        
         const { player, settings, strategy } = aiData;
         const actions = [];
+        
+        // Defensive programming: Check for null/undefined settings
+        if (!settings) {
+            console.error(`AISystem: Settings undefined for AI player ${player?.name || 'unknown'}. Re-initializing...`);
+            // Try to recover by re-initializing settings
+            if (player && aiData.difficulty) {
+                aiData.settings = this.difficultySettings[aiData.difficulty] || this.difficultySettings.medium;
+                console.log(`AISystem: Recovered settings for ${player.name}:`, aiData.settings);
+            } else {
+                // Fallback to safe defaults
+                aiData.settings = {
+                    reactionTime: 2000,
+                    aggressiveness: 0.5,
+                    expansionFocus: 0.5,
+                    economicFocus: 0.5,
+                    defenseThreshold: 0.3
+                };
+                console.log(`AISystem: Used fallback settings for player`);
+            }
+        }
+        
+        // Double-check settings.reactionTime specifically
+        if (!settings.reactionTime || typeof settings.reactionTime !== 'number') {
+            console.error(`AISystem: Invalid reactionTime for ${player?.name}: ${settings.reactionTime}`);
+            settings.reactionTime = 2000; // Safe default
+        }
         
         // Check if enough time has passed since last action
         if (currentTime - aiData.lastAction < settings.reactionTime) {

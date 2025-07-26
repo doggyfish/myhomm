@@ -153,8 +153,12 @@ class TouchManager {
     handleTouchStart(event) {
         if (!this.isEnabled) return;
         
-        event.preventDefault();
-        event.stopPropagation();
+        if (event.preventDefault) {
+            event.preventDefault();
+        }
+        if (event.stopPropagation) {
+            event.stopPropagation();
+        }
         
         const touches = Array.from(event.changedTouches);
         const currentTime = Date.now();
@@ -247,8 +251,12 @@ class TouchManager {
     handleTouchMove(event) {
         if (!this.isEnabled) return;
         
-        event.preventDefault();
-        event.stopPropagation();
+        if (event.preventDefault) {
+            event.preventDefault();
+        }
+        if (event.stopPropagation) {
+            event.stopPropagation();
+        }
         
         const touches = Array.from(event.changedTouches);
         
@@ -293,8 +301,12 @@ class TouchManager {
     handleTouchEnd(event) {
         if (!this.isEnabled) return;
         
-        event.preventDefault();
-        event.stopPropagation();
+        if (event.preventDefault) {
+            event.preventDefault();
+        }
+        if (event.stopPropagation) {
+            event.stopPropagation();
+        }
         
         const touches = Array.from(event.changedTouches);
         const currentTime = Date.now();
@@ -369,6 +381,83 @@ class TouchManager {
         
         const position = this.getCanvasPosition(event.clientX, event.clientY);
         this.simulateTouchEnd(position);
+    }
+    
+    /**
+     * Desktop mouse simulation methods
+     */
+    simulateTouchStart(position) {
+        if (!this.isEnabled) return;
+        
+        // Create a synthetic touch event
+        const touch = {
+            identifier: 'mouse',
+            startX: position.x,
+            startY: position.y,
+            currentX: position.x,
+            currentY: position.y,
+            startTime: Date.now()
+        };
+        
+        this.touchState.touches.set('mouse', touch);
+        
+        // Create synthetic event object
+        const syntheticEvent = {
+            changedTouches: [{
+                identifier: 'mouse',
+                clientX: position.x,
+                clientY: position.y
+            }],
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        };
+        
+        this.handleTouchStart(syntheticEvent);
+    }
+    
+    simulateTouchMove(position) {
+        if (!this.isEnabled) return;
+        
+        const touch = this.touchState.touches.get('mouse');
+        if (touch) {
+            touch.currentX = position.x;
+            touch.currentY = position.y;
+            
+            // Create synthetic event object
+            const syntheticEvent = {
+                changedTouches: [{
+                    identifier: 'mouse',
+                    clientX: position.x,
+                    clientY: position.y
+                }],
+                preventDefault: () => {},
+                stopPropagation: () => {}
+            };
+            
+            this.handleTouchMove(syntheticEvent);
+        }
+    }
+    
+    simulateTouchEnd(position) {
+        if (!this.isEnabled) return;
+        
+        const touch = this.touchState.touches.get('mouse');
+        if (touch) {
+            // Create synthetic event object
+            const syntheticEvent = {
+                changedTouches: [{
+                    identifier: 'mouse',
+                    clientX: position.x,
+                    clientY: position.y
+                }],
+                preventDefault: () => {},
+                stopPropagation: () => {}
+            };
+            
+            this.handleTouchEnd(syntheticEvent);
+            
+            this.touchState.touches.delete('mouse');
+        }
     }
     
     /**
