@@ -506,18 +506,31 @@
                 const aiSystem = new AISystem();
                 
                 // Test AI player creation
-                const testPlayer = new Player("Test AI Player", false);
+                const testPlayer = new Player(1, "Test AI Player", "#ff0000", false);
+                log('system', `Created player: ID=${testPlayer.id}, Name=${testPlayer.name}, IsHuman=${testPlayer.isHuman}`, 'info');
+                
                 aiSystem.registerAIPlayer(testPlayer, 'medium', 'defensive');
+                log('system', `AI players count after registration: ${aiSystem.aiPlayers.size}`, 'info');
                 
                 // Check if settings exist
                 const aiData = aiSystem.aiPlayers.get(testPlayer.id);
+                log('system', `AI data retrieved: ${aiData ? 'Found' : 'Not found'}`, 'info');
+                
+                if (aiData) {
+                    log('system', `AI data keys: ${Object.keys(aiData).join(', ')}`, 'info');
+                    log('system', `Settings exist: ${aiData.settings ? 'Yes' : 'No'}`, 'info');
+                    if (aiData.settings) {
+                        log('system', `Settings keys: ${Object.keys(aiData.settings).join(', ')}`, 'info');
+                    }
+                }
+                
                 if (aiData && aiData.settings) {
                     addResult('system', 'AI Settings Creation', 'pass', 'AI settings created successfully');
                     log('system', 'AI settings structure verified', 'success');
                     
-                    // Test settings properties  
-                    const requiredSettingsProps = ['reactionTime', 'aggressiveness', 'expansionFocus', 'economicFocus'];
-                    const requiredAIDataProps = ['personality', 'difficulty'];
+                    // Test settings properties (from difficultySettings)
+                    const requiredSettingsProps = ['reactionTime', 'attackThreshold', 'economicFocus', 'aggressiveness', 'upgradeFrequency', 'goldReserve'];
+                    const requiredAIDataProps = ['personality', 'difficulty', 'personalityData'];
                     let allPropsExist = true;
                     
                     // Check settings properties
@@ -535,6 +548,21 @@
                             log('system', `Missing AI data property: ${prop}`, 'warning');
                         }
                     });
+                    
+                    // Check personality data properties (from personalityTypes)
+                    if (aiData.personalityData) {
+                        const requiredPersonalityProps = ['name', 'economicFocus', 'aggressiveness', 'expansionTendency', 'riskTolerance'];
+                        requiredPersonalityProps.forEach(prop => {
+                            if (!(prop in aiData.personalityData)) {
+                                allPropsExist = false;
+                                log('system', `Missing personality property: ${prop}`, 'warning');
+                            }
+                        });
+                        log('system', `Personality: ${aiData.personalityData.name}`, 'info');
+                    } else {
+                        allPropsExist = false;
+                        log('system', 'Missing personalityData object', 'warning');
+                    }
                     
                     if (allPropsExist) {
                         addResult('system', 'AI Settings Properties', 'pass', 'All required properties present');
@@ -562,7 +590,7 @@
             try {
                 // Create and destroy multiple game objects
                 for (let i = 0; i < 100; i++) {
-                    const player = new Player(`Test Player ${i}`, false);
+                    const player = new Player(i, `Test Player ${i}`, `#${Math.floor(Math.random()*16777215).toString(16)}`, false);
                     const castle = new Castle(i, i, player);
                     const army = new Army(player, []);
                     
@@ -606,7 +634,7 @@
             
             try {
                 const aiSystem = new AISystem();
-                const testPlayer = new Player("Bug Test Player", false);
+                const testPlayer = new Player(2, "Bug Test Player", "#00ff00", false);
                 aiSystem.registerAIPlayer(testPlayer, 'medium', 'aggressive');
                 
                 // Get AI data and intentionally corrupt settings
@@ -703,7 +731,7 @@
             
             try {
                 // Test human player creation
-                const humanPlayer = new Player("Test Human", true);
+                const humanPlayer = new Player(10, "Test Human", "#ffffff", true);
                 if (humanPlayer.isHuman === true) {
                     addResult('game', 'Human Player Creation', 'pass', 'Human player created correctly');
                     log('game', 'Human player creation: PASSED', 'success');
@@ -713,7 +741,7 @@
                 }
                 
                 // Test AI player creation
-                const aiPlayer = new Player("Test AI", false);
+                const aiPlayer = new Player(3, "Test AI", "#0000ff", false);
                 if (aiPlayer.isHuman === false) {
                     addResult('game', 'AI Player Creation', 'pass', 'AI player created correctly');
                     log('game', 'AI player creation: PASSED', 'success');
@@ -741,7 +769,7 @@
             log('game', 'Testing castle systems...', 'info');
             
             try {
-                const player = new Player("Castle Test Player", true);
+                const player = new Player(11, "Castle Test Player", "#cccccc", true);
                 const castle = new Castle(5, 5, player);
                 
                 if (castle.owner === player) {
@@ -791,8 +819,8 @@
                 }
                 
                 // Test combat calculation
-                const player1 = new Player("Attacker", true);
-                const player2 = new Player("Defender", false);
+                const player1 = new Player(12, "Attacker", "#ff8888", true);
+                const player2 = new Player(4, "Defender", "#ffff00", false);
                 const army1 = new Army(player1, []);
                 const army2 = new Army(player2, []);
                 
@@ -825,7 +853,7 @@
                 // Create multiple AI players rapidly
                 const playerIds = [];
                 for (let i = 0; i < 50; i++) {
-                    const player = new Player(`Stress AI ${i}`, false);
+                    const player = new Player(i + 100, `Stress AI ${i}`, `#${Math.floor(Math.random()*16777215).toString(16)}`, false);
                     aiSystem.registerAIPlayer(player, 'medium', i % 2 === 0 ? 'aggressive' : 'defensive');
                     playerIds.push(player.id);
                 }
@@ -874,7 +902,7 @@
                 
                 // Test with invalid personality
                 try {
-                    const invalidPlayer = new Player('Invalid AI', false);
+                    const invalidPlayer = new Player(5, 'Invalid AI', '#ff00ff', false);
                     aiSystem.registerAIPlayer(invalidPlayer, 'medium', 'invalid_personality');
                     // Check if default personality was used
                     const aiData = aiSystem.aiPlayers.get(invalidPlayer.id);
@@ -916,7 +944,7 @@
             
             try {
                 const aiSystem = new AISystem();
-                const player = new Player("Corruption Test", false);
+                const player = new Player(6, "Corruption Test", "#00ffff", false);
                 aiSystem.registerAIPlayer(player, 'medium', 'aggressive');
                 
                 const aiData = aiSystem.aiPlayers.get(player.id);
@@ -961,7 +989,7 @@
             
             try {
                 const aiSystem = new AISystem();
-                const player = new Player("Nullify Test", false);
+                const player = new Player(7, "Nullify Test", "#888888", false);
                 aiSystem.registerAIPlayer(player, 'medium', 'defensive');
                 
                 // Completely nullify AI data
@@ -1305,7 +1333,7 @@
                 
                 // Test Player system recovery
                 try {
-                    const player = new Player("Recovery Test", true);
+                    const player = new Player(13, "Recovery Test", "#88ff88", true);
                     if (player) systemsWorking++;
                 } catch (playerError) {
                     log('error', `Player recovery failed: ${playerError.message}`, 'warning');
