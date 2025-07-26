@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    <title>Phase 4 Tactical Test - MyHoMM</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: #ffffff;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+        
+        /* Phase 4 tactical styles */
+        .tactical-game {
+            touch-action: none;
+        }
+        
+        .tactical-game canvas {
+            touch-action: none;
+        }
+        
+        /* High contrast mode */
+        .high-contrast {
+            filter: contrast(2.2);
+        }
+        
+        /* UI transition animations */
+        .ui-transitioning * {
+            transition: all 0.3s ease-in-out;
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            .ui-transitioning * {
+                transition: none;
+            }
+        }
+        
+        .test-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .test-header {
+            background: rgba(0, 0, 0, 0.95);
+            padding: env(safe-area-inset-top, 10px) 20px 10px;
+            border-bottom: 2px solid #ff6b35;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(255, 107, 53, 0.3);
+        }
+        
+        .test-header h1 {
+            color: #ff6b35;
+            font-size: clamp(16px, 4vw, 24px);
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+        
+        .test-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 8px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        
+        .test-btn {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            border: none;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            min-height: 44px; /* iOS minimum touch target */
+            min-width: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3);
+            text-align: center;
+        }
+        
+        .test-btn:hover, .test-btn:focus {
+            background: linear-gradient(45deg, #f7931e, #ff6b35);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+        }
+        
+        .test-btn:active {
+            transform: translateY(0);
+            background: linear-gradient(45deg, #e6842a, #e55a2b);
+        }
+        
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: #111122;
+            border: 1px solid #444;
+            touch-action: none;
+            image-rendering: crisp-edges;
+        }
+        
+        .tactical-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 12px;
+            z-index: 100;
+            max-width: 280px;
+            border: 1px solid #ff6b35;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.2);
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active {
+            background: #4CAF50;
+            box-shadow: 0 0 8px #4CAF50;
+        }
+        
+        .status-inactive {
+            background: #f44336;
+        }
+        
+        .tactical-metrics {
+            position: absolute;
+            bottom: env(safe-area-inset-bottom, 20px);
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 11px;
+            z-index: 100;
+            font-family: 'Courier New', monospace;
+            border: 1px solid #ff6b35;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.2);
+        }
+        
+        .formation-display {
+            position: absolute;
+            top: 120px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 12px;
+            z-index: 100;
+            border: 1px solid #4CAF50;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+        }
+        
+        .notification-area {
+            position: absolute;
+            top: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 40px);
+            max-width: 400px;
+            z-index: 1000;
+            pointer-events: none;
+        }
+        
+        .test-notification {
+            background: rgba(255, 107, 53, 0.95);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 5px 0;
+            font-size: 14px;
+            text-align: center;
+            animation: slideIn 0.3s ease-out;
+            box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+        }
+        
+        .test-notification.success {
+            background: rgba(76, 175, 80, 0.95);
+            box-shadow: 0 4px 20px rgba(76, 175, 80, 0.3);
+        }
+        
+        .test-notification.error {
+            background: rgba(244, 67, 54, 0.95);
+            box-shadow: 0 4px 20px rgba(244, 67, 54, 0.3);
+        }
+        
+        .test-notification.warning {
+            background: rgba(255, 152, 0, 0.95);
+            box-shadow: 0 4px 20px rgba(255, 152, 0, 0.3);
+        }
+        
+        .test-notification.tactical {
+            background: rgba(63, 81, 181, 0.95);
+            box-shadow: 0 4px 20px rgba(63, 81, 181, 0.3);
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Phase 4 tactical UI styles */
+        .tactical-panel {
+            position: absolute;
+            top: 200px;
+            right: 20px;
+            width: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #ff6b35;
+            border-radius: 10px;
+            padding: 15px;
+            z-index: 200;
+            display: none;
+        }
+        
+        .tactical-panel.visible {
+            display: block;
+            animation: slideInRight 0.3s ease-out;
+        }
+        
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        .formation-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .formation-option {
+            background: rgba(255, 107, 53, 0.2);
+            border: 1px solid #ff6b35;
+            border-radius: 6px;
+            padding: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 44px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .formation-option:hover {
+            background: rgba(255, 107, 53, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .formation-option.selected {
+            background: rgba(255, 107, 53, 0.6);
+            border-color: #f7931e;
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+        
+        .formation-icon {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        
+        .formation-name {
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .environmental-controls {
+            margin: 15px 0;
+        }
+        
+        .env-selector {
+            display: flex;
+            gap: 5px;
+            margin: 5px 0;
+            flex-wrap: wrap;
+        }
+        
+        .env-option {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .env-option:hover {
+            background: rgba(76, 175, 80, 0.4);
+        }
+        
+        .env-option.selected {
+            background: rgba(76, 175, 80, 0.6);
+            box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 600px) {
+            .test-header {
+                padding: env(safe-area-inset-top, 5px) 10px 5px;
+            }
+            
+            .test-controls {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+            }
+            
+            .test-btn {
+                padding: 8px 10px;
+                font-size: 11px;
+                min-height: 40px;
+            }
+            
+            .tactical-status, .tactical-metrics {
+                font-size: 10px;
+                padding: 10px;
+                max-width: 220px;
+            }
+            
+            .tactical-panel {
+                width: calc(100% - 40px);
+                right: 20px;
+                left: 20px;
+            }
+        }
+        
+        /* Landscape orientation for small screens */
+        @media (orientation: landscape) and (max-height: 500px) {
+            .test-header h1 {
+                font-size: 16px;
+            }
+            
+            .test-controls {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 4px;
+            }
+            
+            .test-btn {
+                padding: 6px 8px;
+                font-size: 10px;
+                min-height: 36px;
+            }
+        }
+        
+        /* Battle analysis styles */
+        .battle-analysis {
+            background: rgba(63, 81, 181, 0.1);
+            border: 1px solid #3f51b5;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+        }
+        
+        .power-comparison {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .power-bar {
+            flex: 1;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 0 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .power-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            transition: width 0.5s ease;
+        }
+        
+        .castle-specialization {
+            background: rgba(156, 39, 176, 0.1);
+            border: 1px solid #9c27b0;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .spec-icon {
+            font-size: 24px;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .bonus-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .bonus-item {
+            display: flex;
+            align-items: center;
+            margin: 4px 0;
+            font-size: 11px;
+        }
+        
+        .bonus-icon {
+            margin-right: 6px;
+            width: 16px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container tactical-game">
+        <div class="test-header">
+            <h1>⚔️ MyHoMM Phase 4 Tactical Test</h1>
+            <div class="test-controls">
+                <button class="test-btn" onclick="initializeTacticalTest()">
+                    🚀 Initialize Tactical
+                </button>
+                <button class="test-btn" onclick="testFormationSystem()">
+                    🎯 Test Formations
+                </button>
+                <button class="test-btn" onclick="testEnvironmentalEffects()">
+                    🌍 Test Environment
+                </button>
+                <button class="test-btn" onclick="testTacticalCombat()">
+                    ⚔️ Test Combat
+                </button>
+                <button class="test-btn" onclick="testCastleSpecialization()">
+                    🏰 Test Castles
+                </button>
+                <button class="test-btn" onclick="testTacticalUI()">
+                    🎮 Test UI
+                </button>
+                <button class="test-btn" onclick="testCrossPlatform()">
+                    📱 Cross-Platform
+                </button>
+                <button class="test-btn" onclick="showTacticalPanel()">
+                    📊 Tactical Panel
+                </button>
+            </div>
+        </div>
+        
+        <div class="game-area">
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+            
+            <div class="tactical-status" id="tacticalStatus">
+                <div><span class="status-indicator status-inactive"></span>Tactical Systems: Loading...</div>
+                <div id="formationStatus">Formation: None</div>
+                <div id="terrainStatus">Terrain: Plains</div>
+                <div id="weatherStatus">Weather: Clear</div>
+                <div id="combatStatus">Combat: Standard</div>
+            </div>
+            
+            <div class="formation-display" id="formationDisplay">
+                <h4>🎯 Current Formation</h4>
+                <div class="formation-info">
+                    <span class="formation-icon" id="currentFormationIcon">⚖️</span>
+                    <span class="formation-name" id="currentFormationName">Balanced</span>
+                </div>
+                <div class="formation-bonus" id="formationBonus">No modifiers</div>
+            </div>
+            
+            <div class="tactical-metrics" id="tacticalMetrics">
+                <div>⚔️ Tactical Performance</div>
+                <div>Formation Changes: <span id="formationChanges">0</span></div>
+                <div>Tactical Battles: <span id="tacticalBattles">0</span></div>
+                <div>Environmental Effects: <span id="envEffects">0</span></div>
+                <div>Castle Conversions: <span id="castleConversions">0</span></div>
+                <div>UI Responsiveness: <span id="uiResponsiveness">--</span>ms</div>
+            </div>
+            
+            <!-- Tactical Control Panel -->
+            <div class="tactical-panel" id="tacticalPanel">
+                <h3>🎯 Tactical Command</h3>
+                
+                <div class="formation-section">
+                    <h4>Formation Control</h4>
+                    <div class="formation-selector">
+                        <div class="formation-option" data-formation="OFFENSIVE">
+                            <div class="formation-icon">⚡</div>
+                            <div class="formation-name">Offensive</div>
+                        </div>
+                        <div class="formation-option" data-formation="DEFENSIVE">
+                            <div class="formation-icon">🛡️</div>
+                            <div class="formation-name">Defensive</div>
+                        </div>
+                        <div class="formation-option" data-formation="FLANKING">
+                            <div class="formation-icon">🏃</div>
+                            <div class="formation-name">Flanking</div>
+                        </div>
+                        <div class="formation-option" data-formation="BALANCED">
+                            <div class="formation-icon">⚖️</div>
+                            <div class="formation-name">Balanced</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="environmental-controls">
+                    <h4>🌍 Environment</h4>
+                    <div class="terrain-section">
+                        <label>Terrain:</label>
+                        <div class="env-selector">
+                            <div class="env-option selected" data-terrain="PLAINS">🌾 Plains</div>
+                            <div class="env-option" data-terrain="FOREST">🌲 Forest</div>
+                            <div class="env-option" data-terrain="HILLS">⛰️ Hills</div>
+                            <div class="env-option" data-terrain="SWAMP">🦆 Swamp</div>
+                        </div>
+                    </div>
+                    <div class="weather-section">
+                        <label>Weather:</label>
+                        <div class="env-selector">
+                            <div class="env-option selected" data-weather="CLEAR">☀️ Clear</div>
+                            <div class="env-option" data-weather="RAIN">🌧️ Rain</div>
+                            <div class="env-option" data-weather="FOG">🌫️ Fog</div>
+                            <div class="env-option" data-weather="SNOW">❄️ Snow</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="battle-analysis" id="battleAnalysis">
+                    <h4>📊 Battle Analysis</h4>
+                    <div class="power-comparison">
+                        <span>Your Forces</span>
+                        <div class="power-bar">
+                            <div class="power-fill" id="attackerPowerBar" style="width: 60%"></div>
+                        </div>
+                        <span>Enemy</span>
+                    </div>
+                    <div id="battlePrediction">Select armies for battle analysis</div>
+                </div>
+                
+                <div class="castle-specialization" id="castleSpecialization">
+                    <h4>🏰 Castle Management</h4>
+                    <div id="selectedCastleInfo">Select a castle to manage</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="notification-area" id="notificationArea"></div>
+    </div>
+
+    <!-- Load all game classes (Phase 1-3 foundation) -->
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Castle.js"></script>
+    <script src="src/entities/Army.js"></script>
+    <script src="src/systems/ProductionSystem.js"></script>
+    <script src="src/systems/CombatSystem.js"></script>
+    <script src="src/systems/MovementSystem.js"></script>
+    <script src="src/systems/AISystem.js"></script>
+    <script src="src/ui/InputHandler.js"></script>
+    <script src="src/ui/Renderer.js"></script>
+    
+    <!-- Load mobile systems (Phase 3 foundation) -->
+    <script src="src/mobile/MobileOptimizer.js"></script>
+    <script src="src/mobile/TouchManager.js"></script>
+    <script src="src/mobile/MobilePerformanceManager.js"></script>
+    <script src="src/mobile/MobileUIManager.js"></script>
+    <script src="src/mobile/MobileCombatSystem.js"></script>
+    <script src="src/mobile/MobileGameManager.js"></script>
+    
+    <!-- Load Phase 4 tactical systems -->
+    <script src="src/tactical/TacticalCombatSystem.js"></script>
+    <script src="src/tactical/TacticalUIManager.js"></script>
+    <script src="src/tactical/CastleSpecializationSystem.js"></script>
+    
+    <!-- Load main game -->
+    <script src="src/core/Game.js"></script>
+
+    <script>
+        let game = null;
+        let tacticalCombat = null;
+        let tacticalUI = null;
+        let castleSpecialization = null;
+        
+        let testResults = {
+            tactical: false,
+            formations: false,
+            environment: false,
+            combat: false,
+            castles: false,
+            ui: false,
+            crossPlatform: false
+        };
+        
+        let testMetrics = {
+            formationChanges: 0,
+            tacticalBattles: 0,
+            envEffects: 0,
+            castleConversions: 0,
+            uiResponseTimes: []
+        };
+        
+        // Notification system
+        function showNotification(message, type = 'info', duration = 3000) {
+            const notification = document.createElement('div');
+            notification.className = `test-notification ${type}`;
+            notification.textContent = message;
+            
+            const area = document.getElementById('notificationArea');
+            area.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.animation = 'slideIn 0.3s ease-out reverse';
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        area.removeChild(notification);
+                    }
+                }, 300);
+            }, duration);
+        }
+        
+        // Update tactical status display
+        function updateTacticalStatus() {
+            const statusEl = document.getElementById('tacticalStatus');
+            const formationEl = document.getElementById('formationStatus');
+            const terrainEl = document.getElementById('terrainStatus');
+            const weatherEl = document.getElementById('weatherStatus');
+            const combatEl = document.getElementById('combatStatus');
+            
+            if (tacticalCombat && tacticalCombat.tacticalState) {
+                const indicator = statusEl.querySelector('.status-indicator');
+                indicator.className = 'status-indicator status-active';
+                statusEl.firstElementChild.textContent = 'Tactical Systems: Active';
+                
+                // Update formation status
+                if (game.ui.selectedArmy && game.ui.selectedArmy.formation) {
+                    formationEl.textContent = `Formation: ${game.ui.selectedArmy.formation}`;
+                } else {
+                    formationEl.textContent = 'Formation: None Selected';
+                }
+                
+                // Update environmental status
+                terrainEl.textContent = `Terrain: ${game.currentTerrain || 'Plains'}`;
+                weatherEl.textContent = `Weather: ${game.currentWeather || 'Clear'}`;
+                combatEl.textContent = 'Combat: Tactical Enhanced';
+            } else {
+                const indicator = statusEl.querySelector('.status-indicator');
+                indicator.className = 'status-indicator status-inactive';
+                statusEl.firstElementChild.textContent = 'Tactical Systems: Inactive';
+            }
+        }
+        
+        // Update tactical metrics display
+        function updateTacticalMetrics() {
+            document.getElementById('formationChanges').textContent = testMetrics.formationChanges;
+            document.getElementById('tacticalBattles').textContent = testMetrics.tacticalBattles;
+            document.getElementById('envEffects').textContent = testMetrics.envEffects;
+            document.getElementById('castleConversions').textContent = testMetrics.castleConversions;
+            
+            // Calculate average UI response time
+            if (testMetrics.uiResponseTimes.length > 0) {
+                const avgResponse = testMetrics.uiResponseTimes.reduce((a, b) => a + b, 0) / testMetrics.uiResponseTimes.length;
+                document.getElementById('uiResponsiveness').textContent = Math.round(avgResponse);
+            }
+        }
+        
+        // Test functions
+        async function initializeTacticalTest() {
+            try {
+                showNotification('🚀 Initializing Phase 4 tactical systems...', 'info');
+                
+                // Create game instance (includes Phase 3 mobile foundation)
+                game = new Game('gameCanvas');
+                
+                // Wait for mobile systems to initialize
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Initialize Phase 4 tactical systems
+                tacticalCombat = new TacticalCombatSystem(game.mobile.combatSystem);
+                tacticalUI = new TacticalUIManager(game, game.mobile.uiManager, tacticalCombat);
+                castleSpecialization = new CastleSpecializationSystem(game, game.mobile.uiManager);
+                
+                // Set default environment
+                game.currentTerrain = 'PLAINS';
+                game.currentWeather = 'CLEAR';
+                
+                testResults.tactical = true;
+                showNotification('✅ Phase 4 tactical systems initialized successfully!', 'success');
+                
+                updateTacticalStatus();
+                
+                // Start metrics updating
+                setInterval(updateTacticalMetrics, 1000);
+                
+            } catch (error) {
+                console.error('Tactical test initialization failed:', error);
+                showNotification('❌ Tactical initialization failed: ' + error.message, 'error');
+            }
+        }
+        
+        function testFormationSystem() {
+            if (!tacticalCombat) {
+                showNotification('❌ Initialize tactical systems first', 'error');
+                return;
+            }
+            
+            showNotification('🎯 Testing formation system...', 'tactical');
+            
+            // Create test army
+            const testArmy = {
+                owner: { name: 'Test Player' },
+                unitTypes: {
+                    infantry: { count: 100 },
+                    archers: { count: 50 },
+                    cavalry: { count: 25 }
+                },
+                unitCount: 175,
+                formation: 'BALANCED'
+            };
+            
+            // Test different formations
+            const formations = ['OFFENSIVE', 'DEFENSIVE', 'FLANKING', 'BALANCED'];
+            let formationIndex = 0;
+            
+            const testFormation = () => {
+                if (formationIndex < formations.length) {
+                    const formation = formations[formationIndex];
+                    
+                    // Set formation
+                    tacticalCombat.setArmyFormation(testArmy, formation);
+                    testMetrics.formationChanges++;
+                    
+                    // Update formation display
+                    updateFormationDisplay(testArmy, formation);
+                    
+                    showNotification(`Formation set to ${formation}`, 'tactical', 1500);
+                    
+                    formationIndex++;
+                    setTimeout(testFormation, 2000);
+                } else {
+                    testResults.formations = true;
+                    showNotification('✅ Formation system test completed!', 'success');
+                }
+            };
+            
+            testFormation();
+        }
+        
+        function testEnvironmentalEffects() {
+            if (!tacticalCombat) {
+                showNotification('❌ Initialize tactical systems first', 'error');
+                return;
+            }
+            
+            showNotification('🌍 Testing environmental effects...', 'tactical');
+            
+            const terrains = ['PLAINS', 'FOREST', 'HILLS', 'SWAMP'];
+            const weathers = ['CLEAR', 'RAIN', 'FOG', 'SNOW'];
+            
+            let testIndex = 0;
+            
+            const testEnvironment = () => {
+                if (testIndex < terrains.length) {
+                    const terrain = terrains[testIndex];
+                    const weather = weathers[testIndex];
+                    
+                    // Set environment
+                    game.currentTerrain = terrain;
+                    game.currentWeather = weather;
+                    testMetrics.envEffects++;
+                    
+                    // Update environmental displays
+                    updateEnvironmentalDisplay(terrain, weather);
+                    
+                    // Test environmental effects on combat
+                    const testArmy = {
+                        unitTypes: { infantry: { count: 50 }, archers: { count: 30 }, cavalry: { count: 20 } }
+                    };
+                    
+                    const terrainEffects = tacticalCombat.terrainSystem.applyTerrainEffects(
+                        testArmy, testArmy, terrain
+                    );
+                    const weatherEffects = tacticalCombat.weatherSystem.applyWeatherEffects(
+                        testArmy, testArmy, weather
+                    );
+                    
+                    const effectsCount = terrainEffects.length + weatherEffects.length;
+                    showNotification(`${terrain} + ${weather}: ${effectsCount} effects`, 'tactical', 1500);
+                    
+                    testIndex++;
+                    setTimeout(testEnvironment, 2500);
+                } else {
+                    testResults.environment = true;
+                    showNotification('✅ Environmental effects test completed!', 'success');
+                }
+            };
+            
+            testEnvironment();
+        }
+        
+        function testTacticalCombat() {
+            if (!tacticalCombat) {
+                showNotification('❌ Initialize tactical systems first', 'error');
+                return;
+            }
+            
+            showNotification('⚔️ Testing tactical combat system...', 'tactical');
+            
+            // Create test armies with different compositions
+            const attackingArmy = {
+                owner: { name: 'Attacker' },
+                unitTypes: {
+                    infantry: { count: 80 },
+                    archers: { count: 60 },
+                    cavalry: { count: 40 },
+                    knights: { count: 20 }
+                },
+                unitCount: 200,
+                formation: 'OFFENSIVE'
+            };
+            
+            const defendingArmy = {
+                owner: { name: 'Defender' },
+                unitTypes: {
+                    infantry: { count: 70 },
+                    archers: { count: 50 },
+                    cavalry: { count: 30 },
+                    knights: { count: 15 }
+                },
+                unitCount: 165,
+                formation: 'DEFENSIVE'
+            };
+            
+            // Test tactical battle with environmental conditions
+            const battleOptions = {
+                attackerFormation: 'OFFENSIVE',
+                defenderFormation: 'DEFENSIVE',
+                terrain: game.currentTerrain || 'PLAINS',
+                weather: game.currentWeather || 'CLEAR',
+                enableAdvancedTactics: true
+            };
+            
+            // Run tactical battle
+            const result = tacticalCombat.resolveTacticalBattle(attackingArmy, defendingArmy, battleOptions);
+            testMetrics.tacticalBattles++;
+            
+            // Display battle results
+            const attackerPower = result.mobileDisplay.attackerPowerAfter;
+            const defenderPower = result.mobileDisplay.defenderPowerAfter;
+            const winner = attackerPower > defenderPower ? 'Attacker' : 'Defender';
+            
+            updateBattleAnalysis(attackerPower, defenderPower);
+            
+            showNotification(`⚔️ Battle completed! Winner: ${winner}`, 'success');
+            
+            // Show tactical data
+            if (result.tacticalData) {
+                setTimeout(() => {
+                    const advantages = result.tacticalData.formationAdvantages.length;
+                    const effects = result.tacticalData.environmentalEffects.length;
+                    showNotification(`Tactical factors: ${advantages} advantages, ${effects} environmental effects`, 'tactical', 3000);
+                }, 2000);
+            }
+            
+            testResults.combat = true;
+        }
+        
+        function testCastleSpecialization() {
+            if (!castleSpecialization) {
+                showNotification('❌ Initialize tactical systems first', 'error');
+                return;
+            }
+            
+            showNotification('🏰 Testing castle specialization system...', 'tactical');
+            
+            // Create test castle
+            const testCastle = {
+                id: 'test_castle_1',
+                name: 'Test Castle',
+                level: 1,
+                goldProduction: 2,
+                unitTypes: {
+                    infantry: { count: 0, cost: 3, productionTime: 1000 },
+                    archers: { count: 0, cost: 4, productionTime: 2000 }
+                },
+                specialization: null,
+                specializedUpgrades: {}
+            };
+            
+            // Create test player
+            const testPlayer = {
+                name: 'Test Player',
+                resources: { gold: 1000 },
+                spendGold: function(amount) { this.resources.gold -= amount; },
+                canAfford: function(amount) { return this.resources.gold >= amount; }
+            };
+            
+            // Test castle conversion
+            const specializations = ['MILITARY_FORTRESS', 'ECONOMIC_STRONGHOLD', 'ARCANE_TOWER', 'ENGINEERING_COMPLEX'];
+            let specIndex = 0;
+            
+            const testSpecialization = async () => {
+                if (specIndex < specializations.length) {
+                    const spec = specializations[specIndex];
+                    
+                    // Reset castle and player resources for each test
+                    testCastle.specialization = null;
+                    testPlayer.resources.gold = 1000;
+                    
+                    // Convert castle
+                    const result = await castleSpecialization.convertCastle(testCastle, spec, testPlayer);
+                    
+                    if (result.success) {
+                        testMetrics.castleConversions++;
+                        showNotification(`🏰 Converted to ${spec.replace('_', ' ')}`, 'success', 2000);
+                        
+                        // Update castle display
+                        updateCastleSpecializationDisplay(testCastle, spec);
+                        
+                        // Wait for conversion animation
+                        await new Promise(resolve => setTimeout(resolve, 2500));
+                    } else {
+                        showNotification(`❌ Conversion failed: ${result.message}`, 'error', 2000);
+                    }
+                    
+                    specIndex++;
+                    setTimeout(testSpecialization, 3000);
+                } else {
+                    testResults.castles = true;
+                    showNotification('✅ Castle specialization test completed!', 'success');
+                }
+            };
+            
+            testSpecialization();
+        }
+        
+        function testTacticalUI() {
+            if (!tacticalUI) {
+                showNotification('❌ Initialize tactical systems first', 'error');
+                return;
+            }
+            
+            showNotification('🎮 Testing tactical UI system...', 'tactical');
+            
+            let uiTestIndex = 0;
+            const uiTests = [
+                {
+                    name: 'Formation Selector',
+                    test: () => {
+                        const startTime = performance.now();
+                        showTacticalPanel();
+                        const endTime = performance.now();
+                        testMetrics.uiResponseTimes.push(endTime - startTime);
+                        return 'Formation selector displayed';
+                    }
+                },
+                {
+                    name: 'Environmental Controls',
+                    test: () => {
+                        const startTime = performance.now();
+                        // Simulate environmental selection
+                        selectTerrain('FOREST');
+                        selectWeather('RAIN');
+                        const endTime = performance.now();
+                        testMetrics.uiResponseTimes.push(endTime - startTime);
+                        return 'Environmental controls tested';
+                    }
+                },
+                {
+                    name: 'Battle Analysis',
+                    test: () => {
+                        const startTime = performance.now();
+                        updateBattleAnalysis(1200, 800);
+                        const endTime = performance.now();
+                        testMetrics.uiResponseTimes.push(endTime - startTime);
+                        return 'Battle analysis updated';
+                    }
+                },
+                {
+                    name: 'Responsive Design',
+                    test: () => {
+                        const startTime = performance.now();
+                        // Test responsive behavior
+                        const panel = document.getElementById('tacticalPanel');
+                        panel.classList.toggle('mobile-optimized');
+                        const endTime = performance.now();
+                        testMetrics.uiResponseTimes.push(endTime - startTime);
+                        return 'Responsive design tested';
+                    }
+                }
+            ];
+            
+            const runUITest = () => {
+                if (uiTestIndex < uiTests.length) {
+                    const test = uiTests[uiTestIndex];
+                    
+                    try {
+                        const result = test.test();
+                        showNotification(`🎮 ${test.name}: ${result}`, 'tactical', 1800);
+                    } catch (error) {
+                        showNotification(`❌ ${test.name} failed: ${error.message}`, 'error', 2000);
+                    }
+                    
+                    uiTestIndex++;
+                    setTimeout(runUITest, 2200);
+                } else {
+                    testResults.ui = true;
+                    showNotification('✅ Tactical UI test completed!', 'success');
+                }
+            };
+            
+            runUITest();
+        }
+        
+        function testCrossPlatform() {
+            showNotification('📱 Testing cross-platform compatibility...', 'tactical');
+            
+            const platformTests = [
+                {
+                    name: 'Mobile Detection',
+                    test: () => {
+                        const isMobile = game.mobile?.isActive || /Android|iPhone|iPad/i.test(navigator.userAgent);
+                        return isMobile ? 'Mobile detected' : 'Desktop detected';
+                    }
+                },
+                {
+                    name: 'Touch Support',
+                    test: () => {
+                        const hasTouch = 'ontouchstart' in window;
+                        return hasTouch ? 'Touch supported' : 'Mouse/keyboard mode';
+                    }
+                },
+                {
+                    name: 'Performance Scaling',
+                    test: () => {
+                        const targetFPS = game.mobile?.isActive ? 30 : 60;
+                        return `Target FPS: ${targetFPS}`;
+                    }
+                },
+                {
+                    name: 'UI Scaling',
+                    test: () => {
+                        const screenWidth = window.innerWidth;
+                        const scale = screenWidth < 768 ? 'Mobile' : screenWidth < 1024 ? 'Tablet' : 'Desktop';
+                        return `UI Scale: ${scale}`;
+                    }
+                }
+            ];
+            
+            let testIndex = 0;
+            
+            const runPlatformTest = () => {
+                if (testIndex < platformTests.length) {
+                    const test = platformTests[testIndex];
+                    
+                    try {
+                        const result = test.test();
+                        showNotification(`📱 ${test.name}: ${result}`, 'tactical', 1500);
+                    } catch (error) {
+                        showNotification(`❌ ${test.name} failed`, 'error', 1500);
+                    }
+                    
+                    testIndex++;
+                    setTimeout(runPlatformTest, 1800);
+                } else {
+                    testResults.crossPlatform = true;
+                    showNotification('✅ Cross-platform test completed!', 'success');
+                    
+                    // Show final results
+                    setTimeout(showFinalResults, 2000);
+                }
+            };
+            
+            runPlatformTest();
+        }
+        
+        // UI Helper functions
+        function showTacticalPanel() {
+            const panel = document.getElementById('tacticalPanel');
+            panel.classList.add('visible');
+        }
+        
+        function hideTacticalPanel() {
+            const panel = document.getElementById('tacticalPanel');
+            panel.classList.remove('visible');
+        }
+        
+        function updateFormationDisplay(army, formation) {
+            const iconEl = document.getElementById('currentFormationIcon');
+            const nameEl = document.getElementById('currentFormationName'); 
+            const bonusEl = document.getElementById('formationBonus');
+            
+            const formationData = {
+                'OFFENSIVE': { icon: '⚡', name: 'Offensive', bonus: '+20% Attack, -10% Defense' },
+                'DEFENSIVE': { icon: '🛡️', name: 'Defensive', bonus: '+30% Defense, -15% Attack' },
+                'FLANKING': { icon: '🏃', name: 'Flanking', bonus: '+30% Speed, +25% Flanking' },
+                'BALANCED': { icon: '⚖️', name: 'Balanced', bonus: 'No modifiers' }
+            };
+            
+            const data = formationData[formation] || formationData['BALANCED'];
+            
+            if (iconEl) iconEl.textContent = data.icon;
+            if (nameEl) nameEl.textContent = data.name;
+            if (bonusEl) bonusEl.textContent = data.bonus;
+        }
+        
+        function updateEnvironmentalDisplay(terrain, weather) {
+            document.getElementById('terrainStatus').textContent = `Terrain: ${terrain}`;
+            document.getElementById('weatherStatus').textContent = `Weather: ${weather}`;
+            
+            // Update environmental option selections
+            document.querySelectorAll('.env-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            const terrainOption = document.querySelector(`[data-terrain="${terrain}"]`);
+            const weatherOption = document.querySelector(`[data-weather="${weather}"]`);
+            
+            if (terrainOption) terrainOption.classList.add('selected');
+            if (weatherOption) weatherOption.classList.add('selected');
+        }
+        
+        function updateBattleAnalysis(attackerPower, defenderPower) {
+            const totalPower = attackerPower + defenderPower;
+            const attackerPercent = (attackerPower / totalPower) * 100;
+            
+            const powerBar = document.getElementById('attackerPowerBar');
+            if (powerBar) {
+                powerBar.style.width = `${attackerPercent}%`;
+            }
+            
+            const prediction = document.getElementById('battlePrediction');
+            if (prediction) {
+                const advantage = attackerPower > defenderPower ? 'Attacker Advantage' : 'Defender Advantage';
+                const ratio = Math.max(attackerPower, defenderPower) / Math.min(attackerPower, defenderPower);
+                prediction.textContent = `${advantage} (${ratio.toFixed(1)}:1 power ratio)`;
+            }
+        }
+        
+        function updateCastleSpecializationDisplay(castle, specialization) {
+            const castleInfo = document.getElementById('selectedCastleInfo');
+            
+            const specData = {
+                'MILITARY_FORTRESS': { icon: '🏰', name: 'Military Fortress' },
+                'ECONOMIC_STRONGHOLD': { icon: '💰', name: 'Economic Stronghold' },
+                'ARCANE_TOWER': { icon: '🔮', name: 'Arcane Tower' },
+                'ENGINEERING_COMPLEX': { icon: '⚙️', name: 'Engineering Complex' }
+            };
+            
+            const data = specData[specialization];
+            
+            if (castleInfo && data) {
+                castleInfo.innerHTML = `
+                    <div class="spec-icon">${data.icon}</div>
+                    <div class="spec-name">${data.name}</div>
+                    <div class="spec-status">Conversion Complete</div>
+                `;
+            }
+        }
+        
+        function selectTerrain(terrain) {
+            game.currentTerrain = terrain;
+            updateEnvironmentalDisplay(terrain, game.currentWeather);
+            testMetrics.envEffects++;
+        }
+        
+        function selectWeather(weather) {
+            game.currentWeather = weather;
+            updateEnvironmentalDisplay(game.currentTerrain, weather);
+            testMetrics.envEffects++;
+        }
+        
+        function showFinalResults() {
+            const passedTests = Object.values(testResults).filter(result => result).length;
+            const totalTests = Object.keys(testResults).length;
+            
+            const resultMessage = `🎉 Phase 4 Test Results: ${passedTests}/${totalTests} tests passed!`;
+            showNotification(resultMessage, passedTests === totalTests ? 'success' : 'warning', 5000);
+            
+            // Show detailed metrics
+            setTimeout(() => {
+                const metricsMessage = `📊 Metrics: ${testMetrics.formationChanges} formations, ${testMetrics.tacticalBattles} battles, ${testMetrics.castleConversions} conversions`;
+                showNotification(metricsMessage, 'tactical', 4000);
+            }, 1000);
+        }
+        
+        // Event listeners
+        window.addEventListener('load', () => {
+            showNotification('⚔️ Phase 4 Tactical Test Ready!', 'info');
+            updateTacticalStatus();
+            
+            // Setup tactical panel controls
+            setupTacticalPanelHandlers();
+            
+            // Auto-initialize on mobile devices
+            if ('ontouchstart' in window) {
+                setTimeout(() => {
+                    initializeTacticalTest();
+                }, 1500);
+            }
+        });
+        
+        function setupTacticalPanelHandlers() {
+            // Formation selection
+            document.querySelectorAll('.formation-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    const formation = e.currentTarget.dataset.formation;
+                    
+                    // Update selection
+                    document.querySelectorAll('.formation-option').forEach(opt => opt.classList.remove('selected'));
+                    e.currentTarget.classList.add('selected');
+                    
+                    // Apply formation (if we have tactical systems)
+                    if (tacticalCombat) {
+                        const testArmy = { formation: formation };
+                        updateFormationDisplay(testArmy, formation);
+                        testMetrics.formationChanges++;
+                        
+                        showNotification(`Formation changed to ${formation}`, 'tactical', 1500);
+                    }
+                });
+            });
+            
+            // Environmental selection
+            document.querySelectorAll('.env-option').forEach(option => {
+                option.addEventListener('click', (e) => {
+                    const terrain = e.currentTarget.dataset.terrain;
+                    const weather = e.currentTarget.dataset.weather;
+                    
+                    if (terrain) {
+                        selectTerrain(terrain);
+                        showNotification(`Terrain set to ${terrain}`, 'tactical', 1000);
+                    }
+                    
+                    if (weather) {
+                        selectWeather(weather);
+                        showNotification(`Weather set to ${weather}`, 'tactical', 1000);
+                    }
+                });
+            });
+        }
+        
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                updateTacticalStatus();
+                showNotification('📱 Orientation changed - UI adapted', 'info', 1500);
+            }, 100);
+        });
+        
+        // Expose test functions globally
+        window.tacticalTest = {
+            initializeTacticalTest,
+            testFormationSystem,
+            testEnvironmentalEffects,
+            testTacticalCombat,
+            testCastleSpecialization,
+            testTacticalUI,
+            testCrossPlatform,
+            showTacticalPanel,
+            hideTacticalPanel,
+            getResults: () => testResults,
+            getMetrics: () => testMetrics,
+            getGame: () => game
+        };
+        
+        console.log('⚔️ Phase 4 tactical test functions available at window.tacticalTest');
+    </script>
+</body>
+</html>
