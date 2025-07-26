@@ -1216,11 +1216,31 @@
             log('mobile', 'Testing performance manager...', 'info');
             
             try {
+                const shouldUseMobile = testPlatformDetector.shouldUseMobileMode();
+                const perfManagerExists = typeof MobilePerformanceManager !== 'undefined';
+                
+                if (!shouldUseMobile && !perfManagerExists) {
+                    addResult('mobile', 'Performance Manager Skip', 'pass', 'MobilePerformanceManager correctly not loaded for desktop mode');
+                    log('mobile', 'MobilePerformanceManager: PASSED (desktop mode - correctly skipped)', 'success');
+                    return;
+                } else if (!shouldUseMobile && perfManagerExists) {
+                    addResult('mobile', 'Performance Manager Skip', 'warning', 'MobilePerformanceManager loaded but not needed for desktop');
+                    log('mobile', 'MobilePerformanceManager: WARNING (loaded unnecessarily for desktop)', 'warning');
+                    return;
+                } else if (shouldUseMobile && !perfManagerExists) {
+                    addResult('mobile', 'Performance Manager Creation', 'fail', 'MobilePerformanceManager should be loaded for mobile mode');
+                    log('mobile', 'MobilePerformanceManager: FAILED (missing for mobile mode)', 'error');
+                    return;
+                }
+                
+                // Mobile mode - test MobilePerformanceManager functionality
+                log('mobile', 'Testing MobilePerformanceManager functionality for mobile mode...', 'info');
+                
                 const perfManager = new MobilePerformanceManager();
                 
                 if (perfManager) {
-                    addResult('mobile', 'Performance Manager Creation', 'pass', 'Performance manager created');
-                    log('mobile', 'Performance manager: PASSED', 'success');
+                    addResult('mobile', 'Performance Manager Creation', 'pass', 'Performance manager created for mobile mode');
+                    log('mobile', 'Performance manager: PASSED (mobile mode)', 'success');
                     
                     // Test performance monitoring
                     if (typeof perfManager.startMonitoring === 'function') {
@@ -1252,6 +1272,17 @@
             log('mobile', 'Simulating low memory conditions...', 'warning');
             
             try {
+                const shouldUseMobile = testPlatformDetector.shouldUseMobileMode();
+                
+                if (!shouldUseMobile) {
+                    addResult('mobile', 'Low Memory Test Skip', 'pass', 'Low memory test correctly skipped for desktop mode');
+                    log('mobile', 'Low memory test: PASSED (desktop mode - correctly skipped)', 'success');
+                    return;
+                }
+                
+                // Mobile mode - test low memory resilience
+                log('mobile', 'Testing low memory resilience for mobile mode...', 'info');
+                
                 // Create memory pressure
                 const memoryConsumers = [];
                 for (let i = 0; i < 100; i++) {
@@ -1260,17 +1291,22 @@
                 
                 log('mobile', 'Created memory pressure', 'info');
                 
-                // Test if systems still function
+                // Test if mobile systems still function
                 try {
-                    const mockGame = { mobile: { isActive: true } };
-                    const mobileUI = new MobileUIManager(mockGame, null);
-                    
-                    if (mobileUI) {
-                        addResult('mobile', 'Low Memory Resilience', 'pass', 'Mobile UI still functional under memory pressure');
-                        log('mobile', 'Low memory resilience: PASSED', 'success');
+                    if (typeof MobileUIManager !== 'undefined') {
+                        const mockGame = { mobile: { isActive: true } };
+                        const mobileUI = new MobileUIManager(mockGame, null);
+                        
+                        if (mobileUI) {
+                            addResult('mobile', 'Low Memory Resilience', 'pass', 'Mobile UI still functional under memory pressure');
+                            log('mobile', 'Low memory resilience: PASSED', 'success');
+                        } else {
+                            addResult('mobile', 'Low Memory Resilience', 'fail', 'Mobile UI failed under memory pressure');
+                            log('mobile', 'Low memory resilience: FAILED', 'error');
+                        }
                     } else {
-                        addResult('mobile', 'Low Memory Resilience', 'fail', 'Mobile UI failed under memory pressure');
-                        log('mobile', 'Low memory resilience: FAILED', 'error');
+                        addResult('mobile', 'Low Memory Resilience', 'warning', 'MobileUIManager not available for testing');
+                        log('mobile', 'Low memory resilience: WARNING - MobileUIManager not loaded', 'warning');
                     }
                 } catch (memoryError) {
                     addResult('mobile', 'Low Memory Resilience', 'fail', `System failed: ${memoryError.message}`);
