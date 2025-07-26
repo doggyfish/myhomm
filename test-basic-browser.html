@@ -507,22 +507,32 @@
                 
                 // Test AI player creation
                 const testPlayer = new Player("Test AI Player", false);
-                aiSystem.registerAIPlayer(testPlayer.name, 'defensive');
+                aiSystem.registerAIPlayer(testPlayer, 'medium', 'defensive');
                 
                 // Check if settings exist
-                const aiData = aiSystem.aiPlayers.get(testPlayer.name);
+                const aiData = aiSystem.aiPlayers.get(testPlayer.id);
                 if (aiData && aiData.settings) {
                     addResult('system', 'AI Settings Creation', 'pass', 'AI settings created successfully');
                     log('system', 'AI settings structure verified', 'success');
                     
-                    // Test settings properties
-                    const requiredProps = ['reactionTime', 'personality', 'difficulty'];
+                    // Test settings properties  
+                    const requiredSettingsProps = ['reactionTime', 'aggressiveness', 'expansionFocus', 'economicFocus'];
+                    const requiredAIDataProps = ['personality', 'difficulty'];
                     let allPropsExist = true;
                     
-                    requiredProps.forEach(prop => {
+                    // Check settings properties
+                    requiredSettingsProps.forEach(prop => {
                         if (!(prop in aiData.settings)) {
                             allPropsExist = false;
                             log('system', `Missing AI setting: ${prop}`, 'warning');
+                        }
+                    });
+                    
+                    // Check AI data properties
+                    requiredAIDataProps.forEach(prop => {
+                        if (!(prop in aiData)) {
+                            allPropsExist = false;
+                            log('system', `Missing AI data property: ${prop}`, 'warning');
                         }
                     });
                     
@@ -597,10 +607,10 @@
             try {
                 const aiSystem = new AISystem();
                 const testPlayer = new Player("Bug Test Player", false);
-                aiSystem.registerAIPlayer(testPlayer.name, 'aggressive');
+                aiSystem.registerAIPlayer(testPlayer, 'medium', 'aggressive');
                 
                 // Get AI data and intentionally corrupt settings
-                const aiData = aiSystem.aiPlayers.get(testPlayer.name);
+                const aiData = aiSystem.aiPlayers.get(testPlayer.id);
                 if (aiData) {
                     log('system', `Original settings: ${JSON.stringify(aiData.settings)}`, 'info');
                     
@@ -813,9 +823,11 @@
                 const startTime = Date.now();
                 
                 // Create multiple AI players rapidly
+                const playerIds = [];
                 for (let i = 0; i < 50; i++) {
                     const player = new Player(`Stress AI ${i}`, false);
-                    aiSystem.registerAIPlayer(player.name, i % 2 === 0 ? 'aggressive' : 'defensive');
+                    aiSystem.registerAIPlayer(player, 'medium', i % 2 === 0 ? 'aggressive' : 'defensive');
+                    playerIds.push(player.id);
                 }
                 
                 const creationTime = Date.now() - startTime;
@@ -824,7 +836,7 @@
                 // Test rapid decision making
                 const decisions = [];
                 for (let i = 0; i < 100; i++) {
-                    const decision = aiSystem.makeDecision(`Stress AI ${i % 50}`);
+                    const decision = aiSystem.makeDecision(playerIds[i % 50]);
                     decisions.push(decision);
                 }
                 
@@ -862,9 +874,10 @@
                 
                 // Test with invalid personality
                 try {
-                    aiSystem.registerAIPlayer('Invalid AI', 'invalid_personality');
+                    const invalidPlayer = new Player('Invalid AI', false);
+                    aiSystem.registerAIPlayer(invalidPlayer, 'medium', 'invalid_personality');
                     // Check if default personality was used
-                    const aiData = aiSystem.aiPlayers.get('Invalid AI');
+                    const aiData = aiSystem.aiPlayers.get(invalidPlayer.id);
                     if (aiData && aiData.settings && aiData.settings.personality !== 'invalid_personality') {
                         addResult('ai', 'Invalid Personality', 'pass', 'Default personality used');
                         log('ai', 'Invalid personality: PASSED - default used', 'success');
@@ -904,9 +917,9 @@
             try {
                 const aiSystem = new AISystem();
                 const player = new Player("Corruption Test", false);
-                aiSystem.registerAIPlayer(player.name, 'aggressive');
+                aiSystem.registerAIPlayer(player, 'medium', 'aggressive');
                 
-                const aiData = aiSystem.aiPlayers.get(player.name);
+                const aiData = aiSystem.aiPlayers.get(player.id);
                 if (aiData) {
                     // Corrupt different parts of settings
                     const originalSettings = { ...aiData.settings };
@@ -914,7 +927,7 @@
                     // Test 1: Corrupt reactionTime
                     aiData.settings.reactionTime = "not_a_number";
                     try {
-                        const decision = aiSystem.makeDecision(player.name);
+                        const decision = aiSystem.makeDecision(player.id);
                         addResult('ai', 'Corrupted ReactionTime', 'warning', 'No error with corrupted reactionTime');
                         log('ai', 'Corrupted reactionTime: WARNING - not handled', 'warning');
                     } catch (reactionError) {
@@ -928,7 +941,7 @@
                     // Test 2: Corrupt personality
                     aiData.settings.personality = { not: "a_string" };
                     try {
-                        const decision = aiSystem.makeDecision(player.name);
+                        const decision = aiSystem.makeDecision(player.id);
                         addResult('ai', 'Corrupted Personality', 'warning', 'No error with corrupted personality');
                         log('ai', 'Corrupted personality: WARNING - not handled', 'warning');
                     } catch (personalityError) {
@@ -949,13 +962,13 @@
             try {
                 const aiSystem = new AISystem();
                 const player = new Player("Nullify Test", false);
-                aiSystem.registerAIPlayer(player.name, 'defensive');
+                aiSystem.registerAIPlayer(player, 'medium', 'defensive');
                 
                 // Completely nullify AI data
-                aiSystem.aiPlayers.set(player.name, null);
+                aiSystem.aiPlayers.set(player.id, null);
                 
                 try {
-                    const decision = aiSystem.makeDecision(player.name);
+                    const decision = aiSystem.makeDecision(player.id);
                     addResult('ai', 'Nullified AI Data', 'fail', 'No error with nullified AI data');
                     log('ai', 'Nullified AI data: FAILED - should throw error', 'error');
                 } catch (nullError) {
