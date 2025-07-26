@@ -169,10 +169,13 @@
                 <button class="test-btn" onclick="testConditionalLoading()">Test Conditional Loading</button>
                 <button class="test-btn" onclick="testAISettings()">Test AI Settings</button>
                 <button class="test-btn" onclick="testMemoryLeaks()">Memory Leak Test</button>
+                <button class="test-btn" onclick="runAdvancedTests()">Run Advanced Tests</button>
                 <button class="test-btn danger" onclick="simulateNullSettings()">Simulate Null Settings Bug</button>
             </div>
             <div class="test-output" id="systemOutput"></div>
             <div class="test-results" id="systemResults"></div>
+            <div class="test-output" id="advancedOutput"></div>
+            <div class="test-results" id="advancedResults"></div>
         </div>
 
         <!-- Core Game Tests -->
@@ -299,7 +302,8 @@
             game: [],
             ai: [],
             mobile: [],
-            error: []
+            error: [],
+            advanced: []
         };
 
         // Utility functions
@@ -1688,7 +1692,12 @@
                 log('advanced', 'Running advanced game initialization tests...', 'info');
                 
                 const game = this.createTestGame();
-                if (!game) return;
+                if (!game) {
+                    log('advanced', 'Cannot run initialization tests - game creation failed', 'error');
+                    return;
+                }
+                
+                log('advanced', `Game created with ${game.players.length} players, ${game.castles.length} castles`, 'info');
                 
                 this.assertEqual(game.players.length, 3, "Should have 3 players");
                 this.assertEqual(game.castles.length, 3, "Should have 3 castles");
@@ -1704,18 +1713,24 @@
                     this.assertEqual(castle.unitCount, 10, `Castle ${index + 1} should start with 10 units`);
                     this.assertTrue(castle.owner !== null, `Castle ${index + 1} should have an owner`);
                 });
+                
+                log('advanced', 'Game initialization tests completed', 'success');
             }
             
             async testResourceManagement() {
                 log('advanced', 'Running resource management tests...', 'info');
                 
                 const game = this.createTestGame();
-                if (!game || !game.players.length) return;
+                if (!game || !game.players.length) {
+                    log('advanced', 'Cannot run resource tests - game not available', 'warning');
+                    return;
+                }
                 
                 const player = game.players[0];
                 
                 if (player.resources) {
                     const initialGold = player.resources.gold;
+                    log('advanced', `Player initial gold: ${initialGold}`, 'info');
                     
                     if (player.addGold) {
                         player.addGold(100);
@@ -1728,6 +1743,11 @@
                         this.assertTrue(spent, "Should successfully spend gold");
                         this.assertEqual(player.resources.gold, initialGold + 50, "Gold should be deducted correctly");
                     }
+                    
+                    log('advanced', 'Resource management tests completed', 'success');
+                } else {
+                    log('advanced', 'Player resource system not implemented - skipping tests', 'warning');
+                    addResult('advanced', 'Resource System', 'warning', 'Resource system not yet implemented');
                 }
             }
             
@@ -1813,22 +1833,15 @@
         const advancedTestSuite = new AdvancedGameTestSuite();
         
         // Add advanced test button functionality
-        function runAdvancedTests() {
-            advancedTestSuite.runAdvancedTests();
-        }
-        
-        // Add button for advanced tests if not exists
-        window.addEventListener('DOMContentLoaded', () => {
-            const controlsSection = document.querySelector('.test-controls');
-            if (controlsSection && !document.getElementById('advancedTestBtn')) {
-                const btn = document.createElement('button');
-                btn.id = 'advancedTestBtn';
-                btn.className = 'test-btn';
-                btn.onclick = runAdvancedTests;
-                btn.textContent = 'Run Advanced Tests';
-                controlsSection.appendChild(btn);
+        async function runAdvancedTests() {
+            try {
+                log('advanced', 'Starting Advanced Test Suite...', 'info');
+                await advancedTestSuite.runAdvancedTests();
+            } catch (error) {
+                log('advanced', `Advanced test error: ${error.message}`, 'error');
+                addResult('advanced', 'Advanced Test Suite Error', 'fail', error.message);
             }
-        });
+        }
 
         // Initialize
         log('monitor', 'MyHoMM Unified Test Suite initialized and ready', 'success');
