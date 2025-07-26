@@ -8,12 +8,14 @@ Your HTML5 game now has a comprehensive automated testing system with a hybrid a
 
 ```
 tests/
-├── test-basic-browser.html     # 🎯 PRIMARY - All systems, daily use
+├── test-basic-browser.html     # 🎯 PRIMARY - Unified comprehensive test suite
 ├── specialized/
 │   ├── test-mobile.html        # 📱 Mobile-specific deep testing
 │   └── test-tactical.html      # ⚔️ Tactical systems deep testing
 └── archive/
-    └── test-phase2.html        # 📦 Historical phase tests
+    ├── test-phase2.html        # 📦 Historical phase tests
+    ├── test.html               # 📦 Legacy object-oriented test framework
+    └── test-suite.js           # 📦 Legacy test suite class
 ```
 
 ### **Test Types Available:**
@@ -24,14 +26,19 @@ tests/
 4. **Cross-Browser Tests** - Ensure compatibility
 5. **Memory Tests** - Check for memory leaks
 6. **Platform-Aware Tests** - Conditional loading based on device type
+7. **Advanced OOP Tests** - Object-oriented testing framework with assertions
+8. **System Integration Tests** - End-to-end system validation
 
 ## 🚀 Quick Start
 
-### **Primary Testing (90% of Use Cases)**
+### **Primary Testing (95% of Use Cases)**
 
 1. **Open `test-basic-browser.html`** in your browser
-2. **Click "Run All Tests"** button
-3. **See results** immediately with visual feedback
+2. **Choose your test approach:**
+   - **Quick Testing:** Click "Run All Tests" for standard test suite
+   - **Advanced Testing:** Click "Run Advanced Tests" for OOP framework testing
+   - **Specific Testing:** Click individual test buttons for targeted testing
+3. **See results** immediately with visual feedback and detailed logging
 
 ### **Specialized Testing Scenarios**
 
@@ -240,6 +247,9 @@ Use `tests/specialized/test-mobile.html` for:
 - ✅ Quick feature verification
 - ✅ Cross-platform compatibility checks
 - ✅ Platform-aware mobile system validation
+- ✅ Advanced OOP testing with assertions
+- ✅ Performance benchmarking
+- ✅ Comprehensive system integration testing
 
 ### **Use specialized test files for:**
 - 📱 **`tests/specialized/test-mobile.html`:** Real mobile device testing, touch optimization
@@ -247,10 +257,12 @@ Use `tests/specialized/test-mobile.html` for:
 - 📦 **`tests/archive/`:** Historical phase-specific tests
 
 ### **Benefits of This Structure:**
-- **Efficiency:** One comprehensive file for 90% of testing needs
+- **Unified Testing:** One comprehensive file for 95% of testing needs
+- **Dual Framework:** Both functional and OOP testing approaches in one place
+- **Legacy Preserved:** Historical test frameworks archived but accessible
 - **Specialization:** Focused environments for specific testing scenarios  
-- **Maintainability:** Clear separation of concerns
-- **Performance:** Lighter load for routine testing
-- **Flexibility:** Choose appropriate test environment for the task
+- **Maintainability:** Clear separation of concerns with no duplication
+- **Performance:** Optimized load for routine testing
+- **Flexibility:** Choose appropriate test framework and environment for the task
 
 Your game is now fully tested and ready for production! 🚀

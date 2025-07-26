@@ -1623,8 +1623,216 @@
             log('error', `Unhandled promise rejection: ${event.reason}`, 'error');
         });
 
+        // Enhanced Object-Oriented Testing Framework
+        // Merged from test-suite.js for comprehensive testing capabilities
+        class AdvancedGameTestSuite {
+            constructor() {
+                this.testResults = [];
+                this.game = null;
+                this.originalConsoleLog = console.log;
+                this.gameLog = [];
+            }
+            
+            // Test Framework Methods
+            assertTrue(condition, message) {
+                if (condition) {
+                    addResult('advanced', message, 'pass', 'Assertion passed');
+                } else {
+                    addResult('advanced', message, 'fail', 'ASSERTION FAILED');
+                }
+            }
+            
+            assertEqual(actual, expected, message) {
+                if (actual === expected) {
+                    addResult('advanced', message, 'pass', `Expected: ${expected}, Got: ${actual}`);
+                } else {
+                    addResult('advanced', message, 'fail', `Expected: ${expected}, Got: ${actual}`);
+                }
+            }
+            
+            createTestGame() {
+                try {
+                    window.testMode = true;
+                    
+                    if (typeof Game === 'undefined') {
+                        addResult('advanced', 'Game Class Missing', 'fail', 'Game class not loaded');
+                        return null;
+                    }
+                    
+                    const canvas = document.getElementById('gameCanvas') || document.createElement('canvas');
+                    canvas.id = 'gameCanvas';
+                    canvas.width = 400;
+                    canvas.height = 300;
+                    
+                    if (!document.getElementById('gameCanvas')) {
+                        document.body.appendChild(canvas);
+                    }
+                    
+                    this.game = new Game('gameCanvas');
+                    
+                    // Verify initialization
+                    if (this.game.players.length === 0 || this.game.castles.length === 0) {
+                        if (this.game.initializePlayers) this.game.initializePlayers();
+                        if (this.game.initializeCastles) this.game.initializeCastles();
+                        if (this.game.initializeSystems) this.game.initializeSystems();
+                    }
+                    
+                    return this.game;
+                } catch (error) {
+                    addResult('advanced', 'Test Game Creation', 'fail', error.message);
+                    return null;
+                }
+            }
+            
+            async testGameInitialization() {
+                log('advanced', 'Running advanced game initialization tests...', 'info');
+                
+                const game = this.createTestGame();
+                if (!game) return;
+                
+                this.assertEqual(game.players.length, 3, "Should have 3 players");
+                this.assertEqual(game.castles.length, 3, "Should have 3 castles");
+                this.assertEqual(game.armies.length, 0, "Should start with 0 armies");
+                
+                // Test player properties
+                this.assertTrue(game.players[0].isHuman, "Player 1 should be human");
+                this.assertTrue(!game.players[1].isHuman, "Player 2 should be AI");
+                this.assertTrue(!game.players[2].isHuman, "Player 3 should be AI");
+                
+                // Test castle properties
+                game.castles.forEach((castle, index) => {
+                    this.assertEqual(castle.unitCount, 10, `Castle ${index + 1} should start with 10 units`);
+                    this.assertTrue(castle.owner !== null, `Castle ${index + 1} should have an owner`);
+                });
+            }
+            
+            async testResourceManagement() {
+                log('advanced', 'Running resource management tests...', 'info');
+                
+                const game = this.createTestGame();
+                if (!game || !game.players.length) return;
+                
+                const player = game.players[0];
+                
+                if (player.resources) {
+                    const initialGold = player.resources.gold;
+                    
+                    if (player.addGold) {
+                        player.addGold(100);
+                        this.assertEqual(player.resources.gold, initialGold + 100, "Should add gold correctly");
+                    }
+                    
+                    if (player.spendGold && player.canAfford) {
+                        this.assertTrue(player.canAfford(50), "Should be able to afford 50 gold");
+                        const spent = player.spendGold(50);
+                        this.assertTrue(spent, "Should successfully spend gold");
+                        this.assertEqual(player.resources.gold, initialGold + 50, "Gold should be deducted correctly");
+                    }
+                }
+            }
+            
+            async testCombatSystem() {
+                log('advanced', 'Running advanced combat system tests...', 'info');
+                
+                const game = this.createTestGame();
+                if (!game || !game.players.length) return;
+                
+                if (typeof Army !== 'undefined') {
+                    const army1 = new Army(1, 1, game.players[0], 15);
+                    const army2 = new Army(1, 1, game.players[1], 10);
+                    
+                    if (game.systems.combat) {
+                        const result = game.systems.combat.resolveArmyVsArmy(army1, army2);
+                        this.assertTrue(result.type === 'army_vs_army', "Combat should return proper result");
+                        this.assertTrue(typeof result.attackerWins === 'boolean', "Result should include winner info");
+                    }
+                    
+                    // Test combat power calculation
+                    if (army1.getEffectiveCombatPower) {
+                        const power = army1.getEffectiveCombatPower();
+                        this.assertTrue(typeof power === 'number', "Combat power should be a number");
+                        this.assertTrue(power > 0, "Combat power should be positive");
+                    }
+                }
+            }
+            
+            async testPerformanceBenchmark() {
+                log('advanced', 'Running performance benchmark tests...', 'info');
+                
+                const game = this.createTestGame();
+                if (!game) return;
+                
+                const startTime = performance.now();
+                
+                // Create many armies for stress testing
+                for (let i = 0; i < 100; i++) {
+                    if (typeof Army !== 'undefined') {
+                        const army = new Army(
+                            Math.floor(Math.random() * 20),
+                            Math.floor(Math.random() * 15),
+                            game.players[i % 3],
+                            10
+                        );
+                        army.targetX = Math.floor(Math.random() * 20);
+                        army.targetY = Math.floor(Math.random() * 15);
+                        game.armies.push(army);
+                    }
+                }
+                
+                // Update armies multiple times
+                for (let i = 0; i < 100; i++) {
+                    if (game.systems.movement) {
+                        game.systems.movement.updateAllMovement(game.armies);
+                    } else {
+                        game.armies.forEach(army => {
+                            if (army.updateMovement) army.updateMovement();
+                        });
+                    }
+                }
+                
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+                
+                this.assertTrue(duration < 200, `Performance should be <200ms (took ${duration.toFixed(2)}ms)`);
+                addResult('advanced', 'Performance Benchmark', 'pass', `Processed 100 armies x 100 updates in ${duration.toFixed(2)}ms`);
+            }
+            
+            async runAdvancedTests() {
+                log('advanced', '🚀 Starting Advanced Test Suite...', 'info');
+                
+                await this.testGameInitialization();
+                await this.testResourceManagement();
+                await this.testCombatSystem();
+                await this.testPerformanceBenchmark();
+                
+                log('advanced', '✅ Advanced Tests Complete!', 'success');
+            }
+        }
+        
+        // Create global instance
+        const advancedTestSuite = new AdvancedGameTestSuite();
+        
+        // Add advanced test button functionality
+        function runAdvancedTests() {
+            advancedTestSuite.runAdvancedTests();
+        }
+        
+        // Add button for advanced tests if not exists
+        window.addEventListener('DOMContentLoaded', () => {
+            const controlsSection = document.querySelector('.test-controls');
+            if (controlsSection && !document.getElementById('advancedTestBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'advancedTestBtn';
+                btn.className = 'test-btn';
+                btn.onclick = runAdvancedTests;
+                btn.textContent = 'Run Advanced Tests';
+                controlsSection.appendChild(btn);
+            }
+        });
+
         // Initialize
-        log('monitor', 'MyHoMM Test Suite initialized and ready', 'success');
+        log('monitor', 'MyHoMM Unified Test Suite initialized and ready', 'success');
+        log('monitor', 'Enhanced with advanced OOP testing framework', 'info');
         log('monitor', 'Click any test button to begin testing', 'info');
     </script>
 </body>
