@@ -206,9 +206,71 @@ class EnhancedMainGameScene extends Phaser.Scene {
         console.log('📸 Enhanced camera system initialized');
     }
     
+    createGrid() {
+        // Create grid graphics for visual game board
+        this.gridGraphics = this.add.graphics();
+        this.redrawGrid();
+    }
+    
+    redrawGrid() {
+        if (!this.gridGraphics) return;
+        
+        this.gridGraphics.clear();
+        this.gridGraphics.lineStyle(1, 0x333333, 0.5);
+        
+        // Draw vertical lines
+        for (let x = 0; x <= this.mapWidth; x++) {
+            this.gridGraphics.moveTo(x * this.tileSize, 0);
+            this.gridGraphics.lineTo(x * this.tileSize, this.mapHeight * this.tileSize);
+        }
+        
+        // Draw horizontal lines
+        for (let y = 0; y <= this.mapHeight; y++) {
+            this.gridGraphics.moveTo(0, y * this.tileSize);
+            this.gridGraphics.lineTo(this.mapWidth * this.tileSize, y * this.tileSize);
+        }
+        
+        this.gridGraphics.strokePath();
+    }
+    
     createTerrainVisuals() {
         this.terrainGraphics = this.add.graphics();
         this.redrawTerrain();
+    }
+    
+    createDebugGraphics() {
+        // Create debug graphics for development visualization
+        this.debugGraphics = this.add.graphics();
+        this.debugGraphics.setDepth(1000); // Always on top
+        
+        // Initially empty, will be populated by debug methods
+        if (this.debugMode) {
+            this.redrawDebugInfo();
+        }
+    }
+    
+    redrawDebugInfo() {
+        if (!this.debugGraphics) return;
+        
+        this.debugGraphics.clear();
+        
+        if (!this.debugMode) return;
+        
+        // Draw debug information like entity paths, AI states, etc.
+        this.debugGraphics.lineStyle(2, 0xff0000, 0.8);
+        
+        // Debug grid coordinates
+        this.debugGraphics.fillStyle(0xffffff, 0.8);
+        for (let x = 0; x < this.mapWidth; x += 5) {
+            for (let y = 0; y < this.mapHeight; y += 5) {
+                this.debugGraphics.fillText(
+                    `${x},${y}`, 
+                    x * this.tileSize + 5, 
+                    y * this.tileSize + 5, 
+                    { fontSize: '10px', fill: '#ffffff' }
+                );
+            }
+        }
     }
     
     redrawTerrain() {

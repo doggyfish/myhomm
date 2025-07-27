@@ -64,6 +64,39 @@ class EnhancedGameManager {
         }
     }
     
+    updatePlayerStatistics() {
+        // Update player statistics for tracking progress and performance
+        this.scene.players.forEach(player => {
+            if (!player) return;
+            
+            // Count player assets
+            const playerCastles = this.scene.castles.filter(c => c.owner === player);
+            const playerArmies = this.scene.armies.filter(a => a.owner === player);
+            
+            // Update player statistics
+            player.statistics = player.statistics || {};
+            player.statistics.castleCount = playerCastles.length;
+            player.statistics.armyCount = playerArmies.length;
+            player.statistics.totalUnits = playerArmies.reduce((sum, army) => sum + (army.unitCount || 0), 0);
+            
+            // Update resources if available
+            if (player.resources) {
+                player.statistics.totalResources = Object.values(player.resources).reduce((sum, val) => sum + val, 0);
+            }
+            
+            // Track battles won/lost
+            if (!player.statistics.battlesWon) player.statistics.battlesWon = 0;
+            if (!player.statistics.battlesLost) player.statistics.battlesLost = 0;
+        });
+        
+        // Update global game statistics
+        this.statistics.totalEntities = this.scene.castles.length + this.scene.armies.length;
+        this.statistics.activePlayers = this.scene.players.filter(p => 
+            this.scene.castles.some(c => c.owner === p) || 
+            this.scene.armies.some(a => a.owner === p)
+        ).length;
+    }
+    
     monitorPerformance() {
         const fps = this.scene.game.loop.actualFps;
         if (fps < MOBILE_CONFIG.performance.minFPS && this.mobileOptimizations.adaptiveQuality) {
