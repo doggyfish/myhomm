@@ -1,431 +1,257 @@
 /**
- * Army class representing a mobile military unit that can move and engage in combat
+ * Army class for MyHoMM Phaser 3 Version
+ * Extends Phaser GameObject for mobile army units
  */
-class Army {
-    /**
-     * Create an Army instance
-     * @param {number} x - Current grid X position
-     * @param {number} y - Current grid Y position
-     * @param {Player} owner - Player who owns this army
-     * @param {number} unitCount - Number of units in the army
-     */
-    constructor(x, y, owner, unitCount) {
-        // Position and movement
-        this.x = x;
-        this.y = y;
-        this.targetX = x;
-        this.targetY = y;
-        this.moveProgress = 0;
-        this.moveSpeed = 0.02; // Movement speed (0-1 per frame)
-        this.isStationary = true;
+
+class Army extends Phaser.GameObjects.Container {
+    constructor(config) {
+        super(config.scene, config.x, config.y);
         
-        // Army composition
-        this.unitCount = unitCount;
-        this.owner = owner;
-        this.selected = false;
+        // Add to scene
+        config.scene.add.existing(this);
         
-        // Combat properties
-        this.attackPower = unitCount; // Base attack equals unit count
-        this.morale = 1.0; // Morale multiplier (0.5-1.5)
-        this.experience = 0; // Experience points for veteran bonuses
-        this.veteranLevel = 0; // 0=Rookie, 1=Veteran, 2=Elite
+        // Entity properties
+        this.type = 'army';
+        this.gridX = config.gridX;
+        this.gridY = config.gridY;
+        this.owner = config.owner;
+        this.unitCount = config.unitCount || 1;
         
-        // Army state
-        this.id = Army.generateId();
-        this.shouldBeRemoved = false;
-        this.lastBattleTime = 0;
-        this.movementHistory = [];
+        // Visual properties
+        this.tileSize = MyHoMMConfig.map.tileSize;
+        this.isSelected = false;
         
-        // Unit composition (for future unit types)
-        this.unitTypes = {
-            infantry: unitCount,
-            cavalry: 0,
-            archers: 0
-        };
+        // Movement properties
+        this.movementSpeed = MyHoMMConfig.units.movementSpeed;
+        this.isMoving = false;
+        this.targetX = this.x;
+        this.targetY = this.y;
         
-        // Formation and tactics (future enhancement)
-        this.formation = 'standard';
-        this.tactics = 'balanced';
+        // Create visual components
+        this.createVisuals();
         
-        // Supply and logistics
-        this.supply = 100; // Supply level (affects combat effectiveness)
-        this.maxSupply = 100;
+        // Make interactive
+        this.setInteractive(new Phaser.Geom.Rectangle(-this.tileSize/2, -this.tileSize/2, this.tileSize, this.tileSize), Phaser.Geom.Rectangle.Contains);
+        
+        console.log(`Army created at (${this.gridX}, ${this.gridY}) for ${this.owner.name} with ${this.unitCount} units`);
     }
     
-    /**
-     * Generate unique army ID
-     * @returns {string} Unique identifier
-     */
-    static generateId() {
-        return 'army_' + Math.random().toString(36).substr(2, 9);
-    }
-    
-    /**
-     * Move army to target position
-     * @param {number} targetX - Target grid X position
-     * @param {number} targetY - Target grid Y position
-     */
-    moveTo(targetX, targetY) {
-        this.targetX = targetX;
-        this.targetY = targetY;
-        this.moveProgress = 0;
-        this.isStationary = false;
+    createVisuals() {
+        // Main army body (circle for armies, rectangle for castles)
+        this.armyBody = this.scene.add.circle(0, 0, this.tileSize * 0.35, this.owner.color);
+        this.armyBody.setStrokeStyle(2, 0x000000);
+        this.add(this.armyBody);
         
-        // Record movement for history
-        this.movementHistory.push({
-            from: { x: this.x, y: this.y },
-            to: { x: targetX, y: targetY },
-            timestamp: Date.now()
+        // Army banner/flag
+        this.armyBanner = this.scene.add.triangle(0, -this.tileSize * 0.3, 0, 0, -8, -12, 8, -12, this.owner.color);
+        this.armyBanner.setStrokeStyle(1, 0x000000);
+        this.add(this.armyBanner);
+        
+        // Unit count text
+        this.unitText = this.scene.add.text(0, 0, this.unitCount.toString(), {
+            fontSize: '12px',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 2,
+            align: 'center'
         });
+        this.unitText.setOrigin(0.5);
+        this.add(this.unitText);
         
-        // Keep movement history limited
-        if (this.movementHistory.length > 10) {
-            this.movementHistory.shift();
-        }
+        // Selection indicator (initially hidden)
+        this.selectionIndicator = this.scene.add.graphics();
+        this.selectionIndicator.lineStyle(3, 0xffff00, 1);
+        this.selectionIndicator.strokeCircle(0, 0, this.tileSize * 0.45);
+        this.selectionIndicator.setVisible(false);
+        this.add(this.selectionIndicator);
         
-        console.log(`Army moving from (${this.x}, ${this.y}) to (${targetX}, ${targetY})`);
+        // Movement indicator
+        this.movementIndicator = this.scene.add.graphics();
+        this.movementIndicator.setVisible(false);
+        this.add(this.movementIndicator);
+        
+        // Depth sorting
+        this.setDepth(15);
     }
     
-    /**
-     * Update army movement - called every frame
-     * @returns {boolean} True if army reached destination
-     */
-    updateMovement() {
-        if (this.isStationary) return false;
-        
-        this.moveProgress += this.moveSpeed;
-        
-        if (this.moveProgress >= 1.0) {
-            // Arrived at destination
-            this.x = this.targetX;
-            this.y = this.targetY;
-            this.moveProgress = 0;
-            this.isStationary = true;
-            
-            console.log(`Army arrived at (${this.x}, ${this.y})`);
-            return true;
+    updateVisuals() {
+        if (this.unitText) {
+            this.unitText.setText(this.unitCount.toString());
         }
         
-        return false;
+        // Update color if owner changed
+        if (this.armyBody) {
+            this.armyBody.setFillStyle(this.owner.color);
+        }
+        if (this.armyBanner) {
+            this.armyBanner.setFillStyle(this.owner.color);
+        }
     }
     
-    /**
-     * Get current visual position for rendering (interpolated during movement)
-     * @returns {Object} Current position for rendering
-     */
-    getRenderPosition() {
-        if (this.isStationary) {
-            return { x: this.x, y: this.y };
+    setSelected(selected) {
+        this.isSelected = selected;
+        if (this.selectionIndicator) {
+            this.selectionIndicator.setVisible(selected);
         }
         
-        // Interpolate position during movement
-        const startX = this.movementHistory.length > 0 ? 
-            this.movementHistory[this.movementHistory.length - 1].from.x : this.x;
-        const startY = this.movementHistory.length > 0 ? 
-            this.movementHistory[this.movementHistory.length - 1].from.y : this.y;
-            
-        return {
-            x: startX + (this.targetX - startX) * this.moveProgress,
-            y: startY + (this.targetY - startY) * this.moveProgress
-        };
+        if (selected) {
+            console.log(`Selected army at (${this.gridX}, ${this.gridY}) - Units: ${this.unitCount}`);
+        }
     }
     
-    /**
-     * Merge with another army (same owner)
-     * @param {Army} otherArmy - Army to merge with
-     * @returns {boolean} True if merge successful
-     */
-    mergeWith(otherArmy) {
-        if (this.owner !== otherArmy.owner) {
+    moveToGrid(targetGridX, targetGridY) {
+        // Validate target position
+        if (targetGridX < 0 || targetGridX >= this.scene.mapWidth ||
+            targetGridY < 0 || targetGridY >= this.scene.mapHeight) {
+            console.log('Invalid move target');
             return false;
         }
         
-        // Combine units
-        this.unitCount += otherArmy.unitCount;
+        // Check for existing entities at target
+        const targetCastle = this.scene.castles.find(c => c.gridX === targetGridX && c.gridY === targetGridY);
+        const targetArmy = this.scene.armies.find(a => a.gridX === targetGridX && a.gridY === targetGridY && a !== this);
         
-        // Average morale and experience
-        const totalUnits = this.unitCount;
-        this.morale = (this.morale + otherArmy.morale) / 2;
-        this.experience = Math.max(this.experience, otherArmy.experience);
-        
-        // Update unit types
-        Object.keys(this.unitTypes).forEach(type => {
-            this.unitTypes[type] += otherArmy.unitTypes[type] || 0;
-        });
-        
-        // Mark other army for removal
-        otherArmy.shouldBeRemoved = true;
-        
-        console.log(`Armies merged! New strength: ${this.unitCount} units`);
-        return true;
+        if (targetCastle) {
+            // Attack castle
+            this.attackCastle(targetCastle);
+            return true;
+        } else if (targetArmy) {
+            // Attack army
+            this.attackArmy(targetArmy);
+            return true;
+        } else {
+            // Move to empty position
+            this.moveToPosition(targetGridX, targetGridY);
+            return true;
+        }
     }
     
-    /**
-     * Attack another army or castle
-     * @param {Army|Castle} target - Target to attack
-     * @returns {Object} Combat result
-     */
-    attack(target) {
-        const result = {
-            attackerWins: false,
-            defenderWins: false,
-            attackerLosses: 0,
-            defenderLosses: 0,
-            targetDestroyed: false
-        };
+    moveToPosition(targetGridX, targetGridY) {
+        this.gridX = targetGridX;
+        this.gridY = targetGridY;
         
-        // Calculate effective combat power
-        const attackPower = this.getEffectiveCombatPower();
-        let defensePower;
+        const targetX = targetGridX * this.tileSize + this.tileSize / 2;
+        const targetY = targetGridY * this.tileSize + this.tileSize / 2;
         
-        if (target instanceof Army) {
-            defensePower = target.getEffectiveCombatPower();
-        } else {
-            // Attacking a castle
-            defensePower = target.getStrength();
+        // Instant movement for now (can be animated later)
+        this.x = targetX;
+        this.y = targetY;
+        
+        console.log(`Army moved to (${targetGridX}, ${targetGridY})`);
+        
+        // Trigger movement event
+        if (this.scene.gameManager) {
+            this.scene.gameManager.onArmyMoved(this, targetGridX, targetGridY);
         }
+    }
+    
+    attackCastle(castle) {
+        console.log(`Army at (${this.gridX}, ${this.gridY}) attacking castle at (${castle.gridX}, ${castle.gridY})`);
         
-        // Simple combat resolution
-        if (attackPower > defensePower) {
-            // Attacker wins
-            result.attackerWins = true;
-            result.defenderLosses = target.unitCount;
-            result.attackerLosses = target.unitCount;
-            
-            this.unitCount -= result.attackerLosses;
-            this.gainExperience(target.unitCount);
-            
-            if (target instanceof Army) {
-                target.shouldBeRemoved = true;
-                result.targetDestroyed = true;
-            }
-            
-        } else if (defensePower > attackPower) {
-            // Defender wins
-            result.defenderWins = true;
-            result.attackerLosses = this.unitCount;
-            result.defenderLosses = this.unitCount;
-            
-            target.unitCount -= result.defenderLosses;
-            if (target instanceof Army) {
-                target.gainExperience(this.unitCount);
-            }
-            
-            this.shouldBeRemoved = true;
-            
+        if (castle.owner === this.owner) {
+            // Friendly castle - merge units
+            const unitsToMerge = this.unitCount;
+            castle.addUnits(unitsToMerge);
+            console.log(`Army merged ${unitsToMerge} units into friendly castle`);
+            this.destroy();
         } else {
-            // Tie - both destroyed
-            result.attackerLosses = this.unitCount;
-            result.defenderLosses = target.unitCount;
+            // Enemy castle - combat
+            const combatResult = castle.defendAgainstArmy(this);
             
-            this.shouldBeRemoved = true;
-            if (target instanceof Army) {
-                target.shouldBeRemoved = true;
-                result.targetDestroyed = true;
-            } else {
-                target.unitCount = 0;
+            // Handle combat result
+            if (this.scene.combatSystem) {
+                this.scene.combatSystem.handleCombatResult(this, castle, combatResult);
             }
         }
+    }
+    
+    attackArmy(targetArmy) {
+        console.log(`Army at (${this.gridX}, ${this.gridY}) attacking army at (${targetArmy.gridX}, ${targetArmy.gridY})`);
         
-        // Record battle statistics
-        this.lastBattleTime = Date.now();
-        this.owner.recordBattle(result.attackerWins);
-        
-        if (target.owner) {
-            target.owner.recordBattle(result.defenderWins);
-        }
-        
-        // Update morale based on result
-        if (result.attackerWins) {
-            this.morale = Math.min(1.5, this.morale + 0.1);
+        if (targetArmy.owner === this.owner) {
+            // Friendly army - merge
+            this.mergeWithArmy(targetArmy);
         } else {
-            this.morale = Math.max(0.5, this.morale - 0.1);
-        }
-        
-        return result;
-    }
-    
-    /**
-     * Calculate effective combat power including bonuses
-     * @returns {number} Effective combat power
-     */
-    getEffectiveCombatPower() {
-        let power = this.unitCount;
-        
-        // Apply morale modifier
-        power *= this.morale;
-        
-        // Apply veteran bonus
-        power *= (1 + this.veteranLevel * 0.1);
-        
-        // Apply supply penalty if low
-        if (this.supply < 50) {
-            power *= (this.supply / 100);
-        }
-        
-        return Math.round(power);
-    }
-    
-    /**
-     * Gain experience from battles
-     * @param {number} enemyUnits - Number of enemy units defeated
-     */
-    gainExperience(enemyUnits) {
-        this.experience += enemyUnits;
-        
-        // Check for veteran level increase
-        const oldLevel = this.veteranLevel;
-        if (this.experience >= 100 && this.veteranLevel < 2) {
-            this.veteranLevel = Math.min(2, Math.floor(this.experience / 50));
-        }
-        
-        if (this.veteranLevel > oldLevel) {
-            console.log(`Army promoted to veteran level ${this.veteranLevel}!`);
+            // Enemy army - combat
+            this.combatWithArmy(targetArmy);
         }
     }
     
-    /**
-     * Rest and recover (restore supply and morale)
-     */
-    rest() {
-        this.supply = Math.min(this.maxSupply, this.supply + 10);
-        this.morale = Math.min(1.5, this.morale + 0.05);
+    mergeWithArmy(otherArmy) {
+        const totalUnits = this.unitCount + otherArmy.unitCount;
+        this.unitCount = totalUnits;
+        this.updateVisuals();
+        
+        console.log(`Armies merged. Total units: ${totalUnits}`);
+        
+        // Remove the other army
+        otherArmy.destroy();
     }
     
-    /**
-     * Split army into two armies
-     * @param {number} percentage - Percentage to split off (0-1)
-     * @returns {Army|null} New army or null if can't split
-     */
-    split(percentage) {
-        if (percentage <= 0 || percentage >= 1 || this.unitCount <= 1) {
-            return null;
-        }
+    combatWithArmy(enemyArmy) {
+        console.log(`Combat between armies: ${this.unitCount} vs ${enemyArmy.unitCount}`);
         
-        const unitsToSplit = Math.floor(this.unitCount * percentage);
-        if (unitsToSplit <= 0) return null;
-        
-        // Create new army
-        const newArmy = new Army(this.x, this.y, this.owner, unitsToSplit);
-        newArmy.morale = this.morale;
-        newArmy.experience = Math.floor(this.experience * percentage);
-        newArmy.veteranLevel = this.veteranLevel;
-        
-        // Reduce current army
-        this.unitCount -= unitsToSplit;
-        this.experience = Math.floor(this.experience * (1 - percentage));
-        
-        // Split unit types proportionally
-        Object.keys(this.unitTypes).forEach(type => {
-            const splitUnits = Math.floor(this.unitTypes[type] * percentage);
-            newArmy.unitTypes[type] = splitUnits;
-            this.unitTypes[type] -= splitUnits;
-        });
-        
-        console.log(`Army split: ${unitsToSplit} units separated`);
-        return newArmy;
-    }
-    
-    /**
-     * Select/deselect this army
-     * @param {boolean} selected - Selection state
-     */
-    setSelected(selected) {
-        this.selected = selected;
-    }
-    
-    /**
-     * Check if army is at the same position as target
-     * @param {number} x - X position to check
-     * @param {number} y - Y position to check
-     * @returns {boolean} True if at same position
-     */
-    isAtPosition(x, y) {
-        return this.x === x && this.y === y && this.isStationary;
-    }
-    
-    /**
-     * Get army status description
-     * @returns {string} Status description
-     */
-    getStatus() {
-        const statusParts = [];
-        
-        if (!this.isStationary) {
-            statusParts.push('Moving');
+        // Simple combat: higher number wins
+        if (this.unitCount > enemyArmy.unitCount) {
+            // This army wins
+            const survivingUnits = this.unitCount - enemyArmy.unitCount;
+            this.unitCount = survivingUnits;
+            this.updateVisuals();
+            
+            // Move to enemy position
+            this.moveToPosition(enemyArmy.gridX, enemyArmy.gridY);
+            
+            // Remove enemy army
+            enemyArmy.destroy();
+            
+            console.log(`Army won combat with ${survivingUnits} units remaining`);
+        } else if (enemyArmy.unitCount > this.unitCount) {
+            // Enemy army wins
+            const survivingUnits = enemyArmy.unitCount - this.unitCount;
+            enemyArmy.unitCount = survivingUnits;
+            enemyArmy.updateVisuals();
+            
+            // Remove this army
+            this.destroy();
+            
+            console.log(`Army lost combat. Enemy has ${survivingUnits} units remaining`);
         } else {
-            statusParts.push('Stationed');
+            // Tie - both armies destroyed
+            console.log('Combat resulted in mutual destruction');
+            enemyArmy.destroy();
+            this.destroy();
         }
-        
-        if (this.veteranLevel > 0) {
-            const levels = ['', 'Veteran', 'Elite'];
-            statusParts.push(levels[this.veteranLevel]);
-        }
-        
-        if (this.supply < 50) {
-            statusParts.push('Low Supply');
-        }
-        
-        if (this.morale < 0.8) {
-            statusParts.push('Low Morale');
-        }
-        
-        return statusParts.join(', ');
     }
     
-    /**
-     * Export army data for saving
-     * @returns {Object} Serializable army data
-     */
-    toJSON() {
-        return {
-            id: this.id,
-            x: this.x,
-            y: this.y,
-            targetX: this.targetX,
-            targetY: this.targetY,
-            unitCount: this.unitCount,
-            ownerId: this.owner.id,
-            moveProgress: this.moveProgress,
-            isStationary: this.isStationary,
-            morale: this.morale,
-            experience: this.experience,
-            veteranLevel: this.veteranLevel,
-            supply: this.supply,
-            unitTypes: this.unitTypes,
-            formation: this.formation,
-            tactics: this.tactics
-        };
+    addUnits(count) {
+        this.unitCount += count;
+        this.updateVisuals();
+        console.log(`Army gained ${count} units. Total: ${this.unitCount}`);
     }
     
-    /**
-     * Import army data from save
-     * @param {Object} data - Army data to import
-     * @param {Player} owner - Player object to assign as owner
-     */
-    static fromJSON(data, owner) {
-        const army = new Army(data.x, data.y, owner, data.unitCount);
-        army.id = data.id;
-        army.targetX = data.targetX || data.x;
-        army.targetY = data.targetY || data.y;
-        army.moveProgress = data.moveProgress || 0;
-        army.isStationary = data.isStationary !== undefined ? data.isStationary : true;
-        army.morale = data.morale || 1.0;
-        army.experience = data.experience || 0;
-        army.veteranLevel = data.veteranLevel || 0;
-        army.supply = data.supply || 100;
-        army.unitTypes = data.unitTypes || army.unitTypes;
-        army.formation = data.formation || 'standard';
-        army.tactics = data.tactics || 'balanced';
+    removeUnits(count) {
+        const removedCount = Math.min(count, this.unitCount);
+        this.unitCount -= removedCount;
+        this.updateVisuals();
         
-        return army;
+        if (this.unitCount <= 0) {
+            this.destroy();
+        }
+        
+        console.log(`Army lost ${removedCount} units. Remaining: ${this.unitCount}`);
+        return removedCount;
+    }
+    
+    destroy() {
+        if (this.scene && this.scene.armies) {
+            const index = this.scene.armies.indexOf(this);
+            if (index !== -1) {
+                this.scene.armies.splice(index, 1);
+            }
+        }
+        
+        super.destroy();
     }
 }
 
-console.log('🔍 Army class defined, checking availability:', typeof Army, typeof window.Army);
-window.Army = Army; // Explicitly ensure it's in global scope
-
-// Export for module system
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Army;
-}
+window.Army = Army;

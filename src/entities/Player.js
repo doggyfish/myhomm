@@ -1,201 +1,180 @@
 /**
- * Player class representing a game player with their properties and statistics
+ * Player class for MyHoMM Phaser 3 Version
+ * Represents a player in the game (human or AI)
  */
-console.log('🔍 Player.js executing, about to define Player class');
+
 class Player {
-    /**
-     * Create a Player instance
-     * @param {number} id - Unique player identifier
-     * @param {string} name - Player's display name
-     * @param {string} color - Player's color (hex or color name)
-     * @param {boolean} isHuman - Whether this player is human-controlled
-     */
-    constructor(id, name, color, isHuman = true) {
-        this.id = id;
-        this.name = name;
-        this.color = color;
-        this.isHuman = isHuman;
+    constructor(config) {
+        this.id = config.id;
+        this.name = config.name;
+        this.color = config.color;
+        this.isHuman = config.isHuman || false;
         
-        // Game statistics
+        // Phase 1-2: Enhanced Resources
+        this.resources = {
+            gold: 1000,
+            income: 10,
+            units: 0,
+            totalProduced: 0,
+            totalLost: 0
+        };
+        
+        // Phase 1-2: Enhanced Statistics
         this.statistics = {
             castlesOwned: 0,
-            totalUnits: 0,
-            unitsProduced: 0,
+            armiesOwned: 0,
             battlesWon: 0,
             battlesLost: 0,
+            unitsProduced: 0,
+            unitsLost: 0,
+            goldEarned: 0,
+            goldSpent: 0,
+            timeAlive: 0,
+            totalDamageDealt: 0,
+            totalDamageReceived: 0,
             castlesCaptured: 0,
             castlesLost: 0
         };
         
-        // Player resources (active resource system)
-        this.resources = {
-            gold: 100, // Starting gold for unit production
-            goldPerSecond: 0
+        // Phase 1-2: Enhanced AI properties
+        this.aiState = {
+            lastDecisionTime: 0,
+            currentStrategy: 'expand',
+            targetPosition: null,
+            difficulty: config.difficulty || 'medium',
+            personality: config.personality || 'balanced',
+            aggressiveness: config.aggressiveness || 0.5,
+            expansiveness: config.expansiveness || 0.5,
+            economicFocus: config.economicFocus || 0.5,
+            lastStrategicDecision: 0,
+            strategicGoals: [],
+            threatAssessment: 'none'
         };
         
-        // Player settings
-        this.settings = {
-            difficulty: 'medium', // for AI players
-            aggressiveness: 0.5,  // 0-1 scale for AI behavior
-            economicFocus: 0.5    // 0-1 scale for AI priorities
+        // Phase 3: Mobile detection
+        this.isMobilePlayer = this.detectMobileDevice();
+        
+        // Phase 4: Tactical preferences
+        this.tacticalPreferences = {
+            preferredFormation: 'balanced',
+            riskTolerance: 0.5,
+            microManagement: config.isHuman ? true : false
         };
+        
+        console.log(`Player created: ${this.name} (${this.isHuman ? 'Human' : 'AI'})`);
     }
     
-    /**
-     * Update player statistics
-     * @param {Object} stats - Statistics to update
-     */
-    updateStatistics(stats) {
-        Object.assign(this.statistics, stats);
-    }
-    
-    /**
-     * Add resources to player
-     * @param {number} amount - Amount of gold to add
-     */
     addGold(amount) {
         this.resources.gold += amount;
+        this.statistics.goldEarned += amount;
+        console.log(`${this.name} gained ${amount} gold (Total: ${this.resources.gold})`);
     }
     
-    /**
-     * Spend player resources
-     * @param {number} amount - Amount of gold to spend
-     * @returns {boolean} True if transaction successful
-     */
     spendGold(amount) {
         if (this.resources.gold >= amount) {
             this.resources.gold -= amount;
+            this.statistics.goldSpent += amount;
+            console.log(`${this.name} spent ${amount} gold (Remaining: ${this.resources.gold})`);
             return true;
         }
+        console.log(`${this.name} cannot afford ${amount} gold (Has: ${this.resources.gold})`);
         return false;
     }
     
-    /**
-     * Check if player can afford a cost
-     * @param {number} cost - Cost to check
-     * @returns {boolean} True if player can afford it
-     */
-    canAfford(cost) {
-        return this.resources.gold >= cost;
+    addUnits(count) {
+        this.resources.units += count;
+        this.statistics.unitsProduced += count;
     }
     
-    /**
-     * Update gold income based on owned castles
-     * @param {number} goldPerSecond - Gold production rate
-     */
-    updateGoldIncome(goldPerSecond) {
-        this.resources.goldPerSecond = goldPerSecond;
-        this.resources.gold += goldPerSecond;
+    loseUnits(count) {
+        this.resources.units = Math.max(0, this.resources.units - count);
+        this.statistics.unitsLost += count;
     }
     
-    /**
-     * Get player's total military strength
-     * @param {Array} castles - Array of castles
-     * @param {Array} armies - Array of armies
-     * @returns {number} Total unit count
-     */
-    getTotalUnits(castles, armies) {
-        const castleUnits = castles
-            .filter(castle => castle.owner === this)
-            .reduce((sum, castle) => sum + castle.unitCount, 0);
-            
-        const armyUnits = armies
-            .filter(army => army.owner === this)
-            .reduce((sum, army) => sum + army.unitCount, 0);
-            
-        this.statistics.totalUnits = castleUnits + armyUnits;
-        return this.statistics.totalUnits;
+    updateStatistics(castleCount, armyCount) {
+        this.statistics.castlesOwned = castleCount;
+        this.statistics.armiesOwned = armyCount;
     }
     
-    /**
-     * Get number of castles owned by this player
-     * @param {Array} castles - Array of all castles
-     * @returns {number} Number of owned castles
-     */
-    getCastleCount(castles) {
-        this.statistics.castlesOwned = castles.filter(castle => castle.owner === this).length;
-        return this.statistics.castlesOwned;
-    }
-    
-    /**
-     * Record a battle result
-     * @param {boolean} won - Whether the player won the battle
-     */
-    recordBattle(won) {
+    recordBattleResult(won, unitsLost = 0) {
         if (won) {
             this.statistics.battlesWon++;
         } else {
             this.statistics.battlesLost++;
         }
-    }
-    
-    /**
-     * Record castle ownership change
-     * @param {boolean} gained - Whether player gained (true) or lost (false) a castle
-     */
-    recordCastleChange(gained) {
-        if (gained) {
-            this.statistics.castlesCaptured++;
-        } else {
-            this.statistics.castlesLost++;
+        
+        if (unitsLost > 0) {
+            this.loseUnits(unitsLost);
         }
     }
     
-    /**
-     * Get player's win rate
-     * @returns {number} Win rate as percentage (0-100)
-     */
-    getWinRate() {
-        const totalBattles = this.statistics.battlesWon + this.statistics.battlesLost;
-        if (totalBattles === 0) return 0;
-        return Math.round((this.statistics.battlesWon / totalBattles) * 100);
+    getColorHex() {
+        return `#${this.color.toString(16).padStart(6, '0')}`;
     }
     
-    /**
-     * Check if this player is defeated (no castles or armies)
-     * @param {Array} castles - Array of all castles
-     * @param {Array} armies - Array of all armies
-     * @returns {boolean} True if player is defeated
-     */
-    isDefeated(castles, armies) {
-        const ownsCastles = castles.some(castle => castle.owner === this);
-        const ownsArmies = armies.some(army => army.owner === this);
-        return !ownsCastles && !ownsArmies;
+    // Phase 3: Mobile detection
+    detectMobileDevice() {
+        return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     }
     
-    /**
-     * Export player data for saving
-     * @returns {Object} Serializable player data
-     */
-    toJSON() {
+    // Phase 1-2: Enhanced resource management
+    updateIncome() {
+        this.addGold(this.resources.income);
+    }
+    
+    // Phase 1-2: Strategic decision making
+    updateAIStrategy(gameState) {
+        if (this.isHuman) return;
+        
+        const now = Date.now();
+        if (now - this.aiState.lastStrategicDecision < 5000) return; // Update every 5 seconds
+        
+        this.aiState.lastStrategicDecision = now;
+        
+        // Simple strategy updating based on game state
+        const enemyCastles = gameState.castles.filter(c => c.owner !== this).length;
+        const myCastles = gameState.castles.filter(c => c.owner === this).length;
+        
+        if (myCastles < enemyCastles) {
+            this.aiState.currentStrategy = 'expand';
+            this.aiState.aggressiveness = Math.min(1.0, this.aiState.aggressiveness + 0.1);
+        } else if (myCastles > enemyCastles * 1.5) {
+            this.aiState.currentStrategy = 'attack';
+            this.aiState.aggressiveness = Math.max(0.3, this.aiState.aggressiveness - 0.05);
+        } else {
+            this.aiState.currentStrategy = 'consolidate';
+        }
+    }
+    
+    // Phase 4: Tactical preferences
+    getPreferredFormation() {
+        if (this.isHuman) return 'manual';
+        
+        switch (this.aiState.personality) {
+            case 'aggressive':
+                return 'offensive';
+            case 'defensive':
+                return 'defensive';
+            default:
+                return 'balanced';
+        }
+    }
+    
+    serialize() {
         return {
             id: this.id,
             name: this.name,
             color: this.color,
             isHuman: this.isHuman,
-            statistics: this.statistics,
-            resources: this.resources,
-            settings: this.settings
+            resources: { ...this.resources },
+            statistics: { ...this.statistics },
+            aiState: { ...this.aiState }
         };
     }
     
-    /**
-     * Import player data from save
-     * @param {Object} data - Player data to import
-     */
-    static fromJSON(data) {
-        const player = new Player(data.id, data.name, data.color, data.isHuman);
-        player.statistics = data.statistics || player.statistics;
-        player.resources = data.resources || player.resources;
-        player.settings = data.settings || player.settings;
-        return player;
+    static deserialize(data) {
+        return new Player(data);
     }
 }
 
-console.log('🔍 Player class defined, checking availability:', typeof Player, typeof window.Player);
-window.Player = Player; // Explicitly ensure it's in global scope
-
-// Export for module system
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = Player;
-}
+window.Player = Player;

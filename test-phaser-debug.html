@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyHoMM Phaser 3 Debug Test</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .debug-info {
+            background: rgba(0,0,0,0.8);
+            border: 2px solid #ff6b6b;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        
+        .console-output {
+            background: #000;
+            color: #00ff00;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            border: 1px solid #333;
+            border-radius: 3px;
+            margin-bottom: 20px;
+        }
+        
+        #gameContainer {
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <div class="debug-info">
+        <h1>🔧 MyHoMM Phaser 3 Debug Test</h1>
+        <p>This page tests the fixed Phaser 3 implementation</p>
+        <p><strong>Status:</strong> <span id="status">Loading...</span></p>
+    </div>
+    
+    <div class="console-output" id="console">
+        <div>Console Output:</div>
+    </div>
+    
+    <div id="gameContainer"></div>
+
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+    
+    <!-- Override console.log to capture output -->
+    <script>
+        const consoleElement = document.getElementById('console');
+        const statusElement = document.getElementById('status');
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        function addToConsole(message, type = 'log') {
+            const div = document.createElement('div');
+            div.style.color = type === 'error' ? '#ff6b6b' : '#00ff00';
+            div.textContent = new Date().toLocaleTimeString() + ' - ' + message;
+            consoleElement.appendChild(div);
+            consoleElement.scrollTop = consoleElement.scrollHeight;
+        }
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            addToConsole(args.join(' '), 'log');
+        };
+        
+        console.error = function(...args) {
+            originalError.apply(console, args);
+            addToConsole('ERROR: ' + args.join(' '), 'error');
+            statusElement.textContent = 'Error detected - check console';
+            statusElement.style.color = '#ff6b6b';
+        };
+        
+        statusElement.textContent = 'Loading scripts...';
+    </script>
+    
+    <!-- Game Configuration -->
+    <script src="src/config/GameConfig.js"></script>
+    
+    <!-- Game Entities -->
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Castle.js"></script>
+    <script src="src/entities/Army.js"></script>
+    
+    <!-- Game Systems -->
+    <script src="src/systems/GameManager.js"></script>
+    <script src="src/systems/CombatSystem.js"></script>
+    <script src="src/systems/ProductionSystem.js"></script>
+    <script src="src/systems/AISystem.js"></script>
+    
+    <!-- Game Scenes -->
+    <script src="src/scenes/MainGameScene.js"></script>
+    <script src="src/scenes/HUDScene.js"></script>
+    
+    <!-- Main Application -->
+    <script src="src/main.js"></script>
+    
+    <script>
+        // Monitor loading completion
+        setTimeout(() => {
+            if (window.game) {
+                statusElement.textContent = 'Game loaded successfully!';
+                statusElement.style.color = '#4CAF50';
+                console.log('🎉 All systems operational');
+            } else {
+                statusElement.textContent = 'Game failed to load';
+                statusElement.style.color = '#ff6b6b';
+                console.error('Game instance not found');
+            }
+        }, 3000);
+    </script>
+</body>
+</html>

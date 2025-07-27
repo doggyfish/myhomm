@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyHoMM - Phaser 3 Version</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #1a1a1a;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        
+        #gameContainer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            font-size: 18px;
+            text-align: center;
+            z-index: 1000;
+        }
+        
+        .red-alert-ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff6b6b;
+            padding: 10px;
+            color: #ffffff;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        .control-panel {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff6b6b;
+            padding: 10px;
+            z-index: 100;
+        }
+        
+        .control-button {
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 2px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        
+        .control-button:hover {
+            background: #ff8888;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="loading">
+            Loading MyHoMM - Phaser 3 Version...
+        </div>
+        
+        <div class="red-alert-ui">
+            <div>MyHoMM v2.0 - Phaser 3</div>
+            <div>FPS: <span id="fps">0</span></div>
+            <div>Objects: <span id="objectCount">0</span></div>
+        </div>
+        
+        <div class="control-panel">
+            <button class="control-button" onclick="game.scene.scenes[0].resetCamera()">Center Camera</button>
+            <button class="control-button" onclick="game.scene.scenes[0].toggleDebug()">Toggle Debug</button>
+            <button class="control-button" onclick="game.scene.scenes[0].addRandomCastle()">Add Castle</button>
+        </div>
+    </div>
+
+    <!-- Phaser 3 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.0/dist/phaser.min.js"></script>
+    
+    <!-- Game Configuration -->
+    <script src="src/config/GameConfig.js"></script>
+    
+    <!-- Game Entities -->
+    <script src="src/entities/Player.js"></script>
+    <script src="src/entities/Castle.js"></script>
+    <script src="src/entities/Army.js"></script>
+    
+    <!-- Game Systems -->
+    <script src="src/systems/GameManager.js"></script>
+    <script src="src/systems/CombatSystem.js"></script>
+    <script src="src/systems/ProductionSystem.js"></script>
+    <script src="src/systems/AISystem.js"></script>
+    
+    <!-- Game Scenes -->
+    <script src="src/scenes/MainGameScene.js"></script>
+    <script src="src/scenes/HUDScene.js"></script>
+    
+    <!-- Main Application -->
+    <script src="src/main.js"></script>
+</body>
+</html>
