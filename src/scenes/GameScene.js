@@ -47,7 +47,7 @@ export default class GameScene extends Phaser.Scene {
         this.uiContainer.add([mapInfoBg, this.mapInfoText]);
 
         // Controls info
-        const controlsBg = this.add.rectangle(10, 100, 300, 120, 0x000000, 0.7)
+        const controlsBg = this.add.rectangle(10, 100, 300, 150, 0x000000, 0.7)
             .setOrigin(0, 0);
         
         const controlsText = this.add.text(20, 110, 
@@ -56,6 +56,8 @@ export default class GameScene extends Phaser.Scene {
             'Mouse Drag - Pan camera\n' +
             'Mouse Wheel - Zoom in/out\n' +
             'Click tile - Inspect\n' +
+            'F - Toggle fog of war\n' +
+            '1-8 - Switch player view\n' +
             'ESC - Back to menu',
             {
                 font: '12px Arial',
@@ -98,6 +100,14 @@ export default class GameScene extends Phaser.Scene {
 
         // ESC key to go back
         this.input.keyboard.on('keydown-ESC', () => this.goBack());
+        
+        // Fog controls
+        this.input.keyboard.on('keydown-F', () => this.toggleFog());
+        
+        // Player switching
+        for (let i = 1; i <= 8; i++) {
+            this.input.keyboard.on(`keydown-${i}`, () => this.switchPlayer(i - 1));
+        }
     }
 
     updateMapInfo() {
@@ -149,6 +159,18 @@ export default class GameScene extends Phaser.Scene {
         // Update UI info periodically
         if (this.time.now % 100 < 50) { // Approximate every 100ms
             this.updateMapInfo();
+        }
+    }
+
+    toggleFog() {
+        if (this.tilemapRenderer) {
+            this.tilemapRenderer.toggleFog();
+        }
+    }
+
+    switchPlayer(playerId) {
+        if (this.tilemapRenderer && playerId < this.mapData.castlePositions.length) {
+            this.tilemapRenderer.setCurrentPlayer(playerId);
         }
     }
 

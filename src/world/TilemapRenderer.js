@@ -1,4 +1,5 @@
 import { TERRAIN_CONFIG } from '../config/TerrainConfig.js';
+import { FogOfWar } from './FogOfWar.js';
 
 export class TilemapRenderer {
     constructor(scene) {
@@ -8,6 +9,10 @@ export class TilemapRenderer {
         this.layers = {};
         this.tileSize = 32;
         this.mapData = null;
+        this.fogOfWar = null;
+        this.fogLayer = null;
+        this.currentPlayer = 0;
+        this.fogEnabled = true;
     }
 
     preload() {
@@ -52,7 +57,28 @@ export class TilemapRenderer {
         graphics.fillRect(12, 12, 8, 8);
         graphics.generateTexture('castle', this.tileSize, this.tileSize);
 
+        // Create fog textures
+        this.createFogTextures(graphics);
+
         graphics.destroy();
+    }
+
+    createFogTextures(graphics) {
+        // Create fully fogged tile (black)
+        graphics.clear();
+        graphics.fillStyle(0x000000, 1.0);
+        graphics.fillRect(0, 0, this.tileSize, this.tileSize);
+        graphics.generateTexture('fog_full', this.tileSize, this.tileSize);
+
+        // Create partially fogged tile (semi-transparent black)
+        graphics.clear();
+        graphics.fillStyle(0x000000, 0.5);
+        graphics.fillRect(0, 0, this.tileSize, this.tileSize);
+        graphics.generateTexture('fog_partial', this.tileSize, this.tileSize);
+
+        // Create clear tile (transparent)
+        graphics.clear();
+        graphics.generateTexture('fog_clear', this.tileSize, this.tileSize);
     }
 
     createTilemap(mapData) {
@@ -88,6 +114,9 @@ export class TilemapRenderer {
         
         // Create castle layer
         this.createCastleSprites(mapData.castlePositions);
+
+        // Initialize fog of war
+        this.initializeFogOfWar(mapData);
 
         return this.tilemap;
     }
@@ -164,6 +193,94 @@ export class TilemapRenderer {
         }
 
         return camera;
+    }
+
+    initializeFogOfWar(mapData) {
+        if (!this.fogEnabled) return;
+
+        // Create fog of war system
+        this.fogOfWar = new FogOfWar(mapData.width, mapData.height, mapData.castlePositions.length);
+        
+        // Initialize vision from starting castles
+        this.fogOfWar.updateVisionFromCastles(mapData.castlePositions, this.currentPlayer);
+        
+        // Create fog layer as sprites instead of tilemap for better control
+        this.fogLayer = this.scene.add.group();
+        this.createFogSprites();
+        
+        // Update fog rendering
+        this.updateFogRendering();
+    }
+
+    createFogSprites() {
+        if (!this.fogOfWar) return;
+
+        for (let y = 0; y < this.mapData.height; y++) {
+            for (let x = 0; x < this.mapData.width; x++) {
+                const fogSprite = this.scene.add.image(
+                    x * this.tileSize + this.tileSize / 2,
+                    y * this.tileSize + this.tileSize / 2,
+                    'fog_full'
+                );
+                
+                fogSprite.setOrigin(0.5);
+                fogSprite.setDepth(10); // Above terrain and castles
+                fogSprite.setData('tileX', x);
+                fogSprite.setData('tileY', y);
+                
+                this.fogLayer.add(fogSprite);
+            }
+        }
+    }
+
+    updateFogRendering() {
+        if (!this.fogOfWar || !this.fogLayer || !this.fogEnabled) return;
+
+        this.fogLayer.children.entries.forEach(fogSprite => {
+            const x = fogSprite.getData('tileX');
+            const y = fogSprite.getData('tileY');
+            const visibility = this.fogOfWar.getTileVisibility(x, y, this.currentPlayer);
+            
+            switch (visibility) {
+                case 0: // Unexplored
+                    fogSprite.setTexture('fog_full');
+                    fogSprite.setVisible(true);
+                    break;
+                case 1: // Explored but not visible
+                    fogSprite.setTexture('fog_partial');
+                    fogSprite.setVisible(true);
+                    break;
+                case 2: // Visible
+                    fogSprite.setVisible(false);
+                    break;
+            }
+        });
+    }
+
+    setCurrentPlayer(playerId) {
+        this.currentPlayer = playerId;
+        if (this.fogOfWar) {
+            this.fogOfWar.setCurrentPlayer(playerId);
+            this.updateFogRendering();
+        }
+    }
+
+    setFogEnabled(enabled) {
+        this.fogEnabled = enabled;
+        if (this.fogLayer) {
+            this.fogLayer.setVisible(enabled);
+        }
+    }
+
+    toggleFog() {
+        this.setFogEnabled(!this.fogEnabled);
+    }
+
+    updateVisionFromCastles() {
+        if (this.fogOfWar && this.mapData) {
+            this.fogOfWar.updateVisionFromCastles(this.mapData.castlePositions, this.currentPlayer);
+            this.updateFogRendering();
+        }
     }
 
     enableCameraControls() {
@@ -277,6 +394,9 @@ export class TilemapRenderer {
         }
         if (this.castleSprites) {
             this.castleSprites.destroy(true);
+        }
+        if (this.fogLayer) {
+            this.fogLayer.destroy(true);
         }
     }
 }
