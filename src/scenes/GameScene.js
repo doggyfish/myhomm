@@ -2,6 +2,9 @@ import Phaser from 'phaser';
 import { TilemapGenerator } from '../world/TilemapGenerator.js';
 import { TilemapRenderer } from '../world/TilemapRenderer.js';
 import { CONFIG } from '../config/ConfigurationManager.js';
+import { Castle } from '../entities/Castle.js';
+import { Player } from '../game/Player.js';
+import { CastleOverlay } from '../ui/CastleOverlay.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -13,9 +16,15 @@ export default class GameScene extends Phaser.Scene {
         const mapSize = CONFIG.get('game.mapSize') || 64;
         const playerCount = CONFIG.get('game.playerCount') || 2;
 
+        // Initialize players
+        this.initializePlayers(playerCount);
+
         // Generate map
         this.mapGenerator = new TilemapGenerator(mapSize, mapSize, playerCount);
         this.mapData = this.mapGenerator.generate();
+
+        // Create castles from map data
+        this.createCastles();
 
         // Create tilemap renderer
         this.tilemapRenderer = new TilemapRenderer(this);
@@ -24,11 +33,17 @@ export default class GameScene extends Phaser.Scene {
         this.tilemapRenderer.setupCamera();
         this.tilemapRenderer.enableCameraControls();
 
+        // Create castle overlay UI
+        this.castleOverlay = new CastleOverlay(this);
+
         // Add UI overlay
         this.createUI();
 
         // Add tile inspection
         this.enableTileInspection();
+        
+        // Add castle selection
+        this.enableCastleSelection();
     }
 
     createUI() {
@@ -55,7 +70,8 @@ export default class GameScene extends Phaser.Scene {
             'WASD / Arrow Keys - Move camera\n' +
             'Mouse Drag - Pan camera\n' +
             'Mouse Wheel - Zoom in/out\n' +
-            'Click tile - Inspect\n' +
+            'Click castle - Select castle\n' +
+            'Click tile - Inspect tile\n' +
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
             'ESC - Back to menu',
@@ -151,9 +167,104 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
+    initializePlayers(playerCount) {
+        this.players = [];
+        
+        for (let i = 0; i < playerCount; i++) {
+            const faction = i % 2 === 0 ? 'human' : 'orc';
+            const isAI = i > 0; // Player 0 is human, others are AI
+            const player = new Player(`player${i}`, `Player ${i + 1}`, faction, isAI);
+            
+            // Give starting resources
+            const resourceManager = player.resourceManager;
+            resourceManager.addResource('gold', 2000);
+            resourceManager.addResource('wood', 500);
+            resourceManager.addResource('stone', 300);
+            
+            this.players.push(player);
+        }
+    }
+
+    createCastles() {
+        this.castles = [];
+        
+        this.mapData.castlePositions.forEach((castlePos, index) => {
+            if (index < this.players.length) {
+                const player = this.players[index];
+                const castle = Castle.createCapital(
+                    `castle_${index}`,
+                    castlePos.x,
+                    castlePos.y,
+                    player
+                );
+                
+                // Initialize fog of war around castle
+                if (this.tilemapRenderer && this.tilemapRenderer.fogOfWar) {
+                    this.tilemapRenderer.fogOfWar.updateVisionFromCastles([castlePos], index);
+                }
+                
+                this.castles.push(castle);
+            }
+        });
+    }
+
+    enableCastleSelection() {
+        // Make castle sprites interactive
+        if (this.tilemapRenderer && this.tilemapRenderer.castleSprites) {
+            this.tilemapRenderer.castleSprites.children.entries.forEach(castleSprite => {
+                castleSprite.setInteractive()
+                    .on('pointerdown', (pointer, localX, localY, event) => {
+                        // Stop event from propagating to tile inspection
+                        event.stopPropagation();
+                        this.selectCastle(castleSprite);
+                    })
+                    .on('pointerover', () => {
+                        if (!this.castleOverlay.selectedCastleSprite || 
+                            this.castleOverlay.selectedCastleSprite !== castleSprite) {
+                            castleSprite.setTint(0xffff00); // Yellow highlight on hover
+                        }
+                    })
+                    .on('pointerout', () => {
+                        if (!this.castleOverlay.selectedCastleSprite || 
+                            this.castleOverlay.selectedCastleSprite !== castleSprite) {
+                            castleSprite.clearTint();
+                        }
+                    });
+            });
+        }
+    }
+
+    selectCastle(castleSprite) {
+        // Find the corresponding castle entity
+        const castleX = castleSprite.getData('x');
+        const castleY = castleSprite.getData('y');
+        
+        const castle = this.castles.find(c => {
+            const pos = c.getPosition();
+            return pos.x === castleX && pos.y === castleY;
+        });
+        
+        if (castle) {
+            this.castleOverlay.show(castle, castleSprite);
+        }
+    }
+
     update() {
         if (this.tilemapRenderer) {
             this.tilemapRenderer.update();
+        }
+        
+        // Update castles
+        if (this.castles) {
+            const deltaTime = this.game.loop.delta;
+            this.castles.forEach(castle => {
+                castle.update(deltaTime);
+            });
+        }
+        
+        // Update castle overlay
+        if (this.castleOverlay) {
+            this.castleOverlay.update(this.game.loop.delta);
         }
         
         // Update UI info periodically
@@ -182,6 +293,11 @@ export default class GameScene extends Phaser.Scene {
         if (this.tilemapRenderer) {
             this.tilemapRenderer.destroy();
         }
+        
+        if (this.castleOverlay) {
+            this.castleOverlay.destroy();
+        }
+        
         super.destroy();
     }
 }
