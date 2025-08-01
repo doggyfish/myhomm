@@ -163,6 +163,14 @@ export class Castle extends Entity {
         this.buildings.forEach(building => {
             if (building.update) {
                 building.update(deltaTime);
+                
+                // Handle completed unit production
+                if (building.canProduce() && this.garrisonArmy) {
+                    const completedUnit = building.updateProduction(deltaTime);
+                    if (completedUnit && this.garrisonArmy.addUnit) {
+                        this.garrisonArmy.addUnit(completedUnit.type, 1);
+                    }
+                }
             }
         });
     }
