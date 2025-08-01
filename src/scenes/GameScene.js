@@ -177,9 +177,9 @@ export default class GameScene extends Phaser.Scene {
             
             // Give starting resources
             const resourceManager = player.resourceManager;
-            resourceManager.addResource('gold', 2000);
-            resourceManager.addResource('wood', 500);
-            resourceManager.addResource('stone', 300);
+            resourceManager.setResource('gold', 2000);
+            resourceManager.setResource('wood', 500);
+            resourceManager.setResource('stone', 300);
             
             this.players.push(player);
         }

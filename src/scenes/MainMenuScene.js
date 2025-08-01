@@ -25,7 +25,8 @@ export default class MainMenuScene extends Phaser.Scene {
 
         // Menu buttons
         this.createButton(width / 2, height / 2, 'New Game', () => {
-            console.log('New Game clicked - Game Setup Scene not implemented yet');
+            console.log('Starting GameSetupScene...');
+            this.scene.start('GameSetupScene');
         });
 
         this.createButton(width / 2, height / 2 + 80, 'Load Game', () => {

@@ -84,33 +84,8 @@ export class TilemapRenderer {
     createTilemap(mapData) {
         this.mapData = mapData;
         
-        // Create tilemap
-        this.tilemap = this.scene.make.tilemap({
-            data: this.convertMapDataToTileIndices(mapData),
-            tileWidth: this.tileSize,
-            tileHeight: this.tileSize,
-            width: mapData.width,
-            height: mapData.height
-        });
-
-        // Create tileset from our generated textures
-        const terrainTypes = Object.keys(TERRAIN_CONFIG);
-        const tilesetImages = terrainTypes.map(terrain => `terrain_${terrain}`);
-        
-        this.tileset = this.tilemap.addTilesetImage('terrain_tileset', tilesetImages[0]);
-        
-        // Add additional tilesets for each terrain type
-        terrainTypes.forEach((terrain, index) => {
-            if (index > 0) {
-                this.tilemap.addTilesetImage(`terrain_${terrain}`, `terrain_${terrain}`);
-            }
-        });
-
-        // Create terrain layer
-        this.layers.terrain = this.tilemap.createLayer(0, this.tileset);
-        
-        // Set tile textures based on terrain type
-        this.updateTerrainTiles();
+        // Use sprite-based approach instead of complex tilemap system
+        this.createTerrainSprites(mapData);
         
         // Create castle layer
         this.createCastleSprites(mapData.castlePositions);
@@ -118,7 +93,31 @@ export class TilemapRenderer {
         // Initialize fog of war
         this.initializeFogOfWar(mapData);
 
-        return this.tilemap;
+        return null; // No actual Phaser tilemap, using sprites
+    }
+
+    createTerrainSprites(mapData) {
+        // Create container for terrain sprites
+        this.terrainContainer = this.scene.add.container(0, 0);
+        this.terrainContainer.setDepth(0); // Bottom layer
+
+        for (let y = 0; y < mapData.height; y++) {
+            for (let x = 0; x < mapData.width; x++) {
+                const tile = mapData.tiles[y][x];
+                const terrainSprite = this.scene.add.image(
+                    x * this.tileSize + this.tileSize / 2,
+                    y * this.tileSize + this.tileSize / 2,
+                    `terrain_${tile.terrain}`
+                );
+                
+                terrainSprite.setOrigin(0.5);
+                terrainSprite.setData('tileX', x);
+                terrainSprite.setData('tileY', y);
+                terrainSprite.setData('terrain', tile.terrain);
+                
+                this.terrainContainer.add(terrainSprite);
+            }
+        }
     }
 
     convertMapDataToTileIndices(mapData) {
@@ -137,21 +136,6 @@ export class TilemapRenderer {
         return tileData;
     }
 
-    updateTerrainTiles() {
-        if (!this.mapData || !this.layers.terrain) return;
-
-        for (let y = 0; y < this.mapData.height; y++) {
-            for (let x = 0; x < this.mapData.width; x++) {
-                const tile = this.mapData.tiles[y][x];
-                const phaserTile = this.layers.terrain.getTileAt(x, y);
-                
-                if (phaserTile) {
-                    // Set the texture based on terrain type
-                    phaserTile.setTexture(`terrain_${tile.terrain}`);
-                }
-            }
-        }
-    }
 
     createCastleSprites(castlePositions) {
         this.castleSprites = this.scene.add.group();
@@ -176,7 +160,7 @@ export class TilemapRenderer {
     setupCamera() {
         const camera = this.scene.cameras.main;
         
-        if (this.tilemap) {
+        if (this.mapData) {
             // Set camera bounds to map size
             const mapWidth = this.mapData.width * this.tileSize;
             const mapHeight = this.mapData.height * this.tileSize;
@@ -389,8 +373,8 @@ export class TilemapRenderer {
     }
 
     destroy() {
-        if (this.tilemap) {
-            this.tilemap.destroy();
+        if (this.terrainContainer) {
+            this.terrainContainer.destroy(true);
         }
         if (this.castleSprites) {
             this.castleSprites.destroy(true);

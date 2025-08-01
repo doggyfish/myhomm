@@ -40,8 +40,30 @@ const config = {
     ]
 };
 
+console.log('Starting RTS Game...');
+
+// Add error handling
+window.addEventListener('error', (event) => {
+    console.error('JavaScript error:', event.error);
+    document.body.innerHTML += '<div style="color: red; font-family: monospace; padding: 20px;">JavaScript Error: ' + event.error.message + '</div>';
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    console.error('Unhandled promise rejection:', event.reason);
+    document.body.innerHTML += '<div style="color: red; font-family: monospace; padding: 20px;">Promise Error: ' + event.reason + '</div>';
+});
+
 // Initialize the game
 const game = new Phaser.Game(config);
+
+// Add game event listeners for debugging
+game.events.on('ready', () => {
+    console.log('Phaser game ready!');
+});
+
+game.events.on('destroy', () => {
+    console.log('Phaser game destroyed');
+});
 
 // Export for potential use in other modules
 export default game;
