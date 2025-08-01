@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
+import BootScene from './scenes/BootScene.js';
+import PreloaderScene from './scenes/PreloaderScene.js';
+import MainMenuScene from './scenes/MainMenuScene.js';
 
-// Basic game configuration
+// Game configuration with scene management
 const config = {
     type: Phaser.AUTO,
     width: 1024,
@@ -26,33 +29,12 @@ const config = {
             debug: false
         }
     },
-    scene: {
-        preload: preload,
-        create: create
-    }
+    scene: [
+        BootScene,
+        PreloaderScene,
+        MainMenuScene
+    ]
 };
-
-// Placeholder preload function
-function preload() {
-    // Create a simple colored rectangle for testing
-    this.load.image('placeholder', 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
-}
-
-// Placeholder create function
-function create() {
-    // Add some text to verify the game is working
-    this.add.text(512, 384, 'RTS Game - Phaser 3 Ready!', {
-        fontSize: '32px',
-        fill: '#ffffff',
-        fontFamily: 'Arial'
-    }).setOrigin(0.5);
-    
-    this.add.text(512, 450, 'Project structure initialized successfully', {
-        fontSize: '16px',
-        fill: '#ecf0f1',
-        fontFamily: 'Arial'
-    }).setOrigin(0.5);
-}
 
 // Initialize the game
 const game = new Phaser.Game(config);
