@@ -227,8 +227,8 @@ export default class GameSetupScene extends Phaser.Scene {
         CONFIG.set('game.playerCount', this.gameConfig.playerCount);
         CONFIG.set('game.difficulty', this.gameConfig.difficulty);
         
-        // For now, show a placeholder message since MainGameScene doesn't exist yet
-        this.showStartGameMessage();
+        // Start the game scene
+        this.scene.start('GameScene');
     }
 
     showStartGameMessage() {

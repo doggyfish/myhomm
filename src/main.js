@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import BootScene from './scenes/BootScene.js';
 import PreloaderScene from './scenes/PreloaderScene.js';
 import MainMenuScene from './scenes/MainMenuScene.js';
+import GameSetupScene from './scenes/GameSetupScene.js';
+import GameScene from './scenes/GameScene.js';
 
 // Game configuration with scene management
 const config = {
@@ -32,7 +34,9 @@ const config = {
     scene: [
         BootScene,
         PreloaderScene,
-        MainMenuScene
+        MainMenuScene,
+        GameSetupScene,
+        GameScene
     ]
 };
 
