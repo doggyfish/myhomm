@@ -3,11 +3,12 @@
   "version": "1.0.0",
   "description": "Heroes of Might and Magic + Red Alert inspired RTS game",
   "main": "src/main.js",
+  "type": "module",
   "scripts": {
     "dev": "webpack serve --mode development",
     "build": "webpack --mode production",
     "start": "npm run dev",
-    "test": "jest"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
   },
   "dependencies": {
     "phaser": "^3.70.0"
