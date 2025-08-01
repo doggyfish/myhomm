@@ -64,6 +64,21 @@ This document outlines the requirements for a real-time strategy game that combi
 3. IF moving through forest or swamp, THEN movement SHALL be slowed but units SHALL receive power bonuses
 4. WHILE on roads, THEN movement speed SHALL be increased significantly
 
+### 3.3 Movement and Speed System
+**User Story**: As a player, I want army movement speed to be based on unit composition and terrain, so that I can make strategic movement decisions.
+
+**Acceptance Criteria**:
+1. WHEN an army contains multiple unit types, THEN the army speed SHALL be the average of all unique unit type speeds
+2. WHERE armies move across different terrains, THEN each terrain type SHALL apply a configurable speed modifier
+3. IF an army moves on a road, THEN it SHALL travel faster by a configurable percentage compared to normal terrain
+4. WHILE moving through difficult terrain (swamp, forest, snow), THEN movement SHALL be slowed by configurable percentages
+5. WHEN calculating movement time from point A to B, THEN the system SHALL consider all terrain modifiers along the path
+6. WHERE speed modifiers exist, THEN they SHALL be stored as configurable variables, not hardcoded values
+7. WHEN calculating army speed with multiple unit types, THEN only unique unit types SHALL be considered (e.g., 100 swordsmen + 50 swordsmen + 10 archers = 2 unit types, not 160 units)
+8. WHEN moving an army, THEN the time to cross one tile SHALL be calculated as: baseTimePerTile / (armySpeed * terrainModifier)
+9. WHERE army speed is measured, THEN it SHALL represent tiles per time unit (e.g., tiles per second)
+10. IF an army has speed 10 and terrain has modifier 2.0 (road), THEN effective speed SHALL be 20 tiles per time unit
+
 ## 4. Castle System Requirements
 
 ### 4.1 Castle Management
@@ -101,8 +116,9 @@ This document outlines the requirements for a real-time strategy game that combi
 **Acceptance Criteria**:
 1. WHEN creating an army, THEN it SHALL support multiple different unit types with maximum of 7 units + 1 siege unit
 2. WHERE an army exists, THEN its total power SHALL equal the sum of all unit powers
-3. IF units have different speeds, THEN army speed SHALL be the average of all units
+3. IF units have different speeds, THEN army speed SHALL be calculated as the average of all unique unit type speeds, regardless of unit quantities
 4. WHILE moving an army, THEN all units SHALL stay together as one group
+5. WHEN calculating army speed, THEN the system SHALL use configurable unit speed values
 
 ### 5.2 Unit Categories
 **User Story**: As a player, I want access to different unit types, so that I can counter enemy strategies.
@@ -112,6 +128,7 @@ This document outlines the requirements for a real-time strategy game that combi
 2. WHERE advanced buildings exist, THEN Cavalry and Magic Users SHALL be producible
 3. IF elite buildings are constructed, THEN Champions and Siege units SHALL be available
 4. WHILE in combat, THEN each unit type SHALL use its specific power value
+5. WHEN defining units, THEN speed SHALL be a property of the unit type configuration, not individual unit instances
 
 ## 6. Resource System Requirements
 
@@ -259,3 +276,36 @@ This document outlines the requirements for a real-time strategy game that combi
 2. WHERE many units exist, THEN pathfinding SHALL use efficient algorithms
 3. IF rendering many entities, THEN culling SHALL remove off-screen objects
 4. WHILE playing, THEN memory usage SHALL be optimized through object pooling
+
+## 15. Configuration System Requirements
+
+### 15.1 No Magic Numbers
+**User Story**: As a developer, I want all game values to be configurable, so that I can easily balance and modify the game.
+
+**Acceptance Criteria**:
+1. WHEN defining game constants, THEN all values SHALL be stored in configuration objects
+2. WHERE numeric values are used, THEN they SHALL reference configuration variables, not hardcoded numbers
+3. IF a value needs adjustment, THEN it SHALL be modifiable without changing game logic code
+4. WHILE implementing features, THEN all timers, multipliers, costs, and rates SHALL use configuration values
+
+### 15.2 Runtime Configuration
+**User Story**: As a player, I want to modify game settings during gameplay, so that I can customize my experience.
+
+**Acceptance Criteria**:
+1. WHEN accessing settings UI, THEN configurable values SHALL be displayed and editable
+2. WHERE configuration changes occur, THEN they SHALL take effect immediately or after confirmation
+3. IF configuration values are invalid, THEN the system SHALL provide validation and default values
+4. WHILE playing, THEN configuration changes SHALL persist for the current game session
+
+## 16. Game Control Requirements
+
+### 16.1 Pause Functionality
+**User Story**: As a player, I want to pause the game, so that I can take breaks without affecting gameplay.
+
+**Acceptance Criteria**:
+1. WHEN the pause button is pressed, THEN all game systems SHALL freeze their state
+2. WHERE game is paused, THEN resource generation, unit movement, production, and combat SHALL halt
+3. IF the game is paused, THEN spell selection timers SHALL stop counting
+4. WHILE paused, THEN the UI SHALL remain interactive for viewing information but not for issuing commands
+5. WHEN unpausing, THEN all systems SHALL resume from their exact paused state
+6. WHERE multiplayer games exist, THEN pause functionality SHALL require agreement from all players or be disabled

@@ -86,18 +86,81 @@ graph LR
 #### 1. Game State Manager
 ```javascript
 class GameStateManager {
-    constructor() {
+    constructor(config) {
+        this.config = config;
         this.players = [];
         this.currentTick = 0;
-        this.gameSpeed = 1.0;
+        this.gameSpeed = CONFIG.get('time.baseGameSpeed');
         this.isPaused = false;
         this.winner = null;
+        this.pausedSystems = [];
     }
     
     update(delta) {
+        if (this.isPaused) {
+            return; // Skip all updates when paused
+        }
+        
+        // Apply game speed modifier
+        const adjustedDelta = delta * this.gameSpeed;
+        
         // Update game tick
+        this.currentTick += adjustedDelta;
+        
         // Process resource generation
+        this.players.forEach(player => {
+            if (player.isAlive) {
+                player.resourceManager.update(adjustedDelta);
+            }
+        });
+        
         // Check victory conditions
+        this.checkVictoryConditions();
+    }
+    
+    pause() {
+        this.isPaused = true;
+        
+        // Store state of time-sensitive systems
+        this.pausedSystems = {
+            magicSystemTime: this.magicSystem?.lastSelectionTime,
+            productionQueues: new Map(),
+            movingArmies: []
+        };
+        
+        // Freeze all active systems
+        this.entities.forEach(entity => {
+            if (entity.type === 'army') {
+                const movement = entity.getComponent('movement');
+                if (movement?.isMoving) {
+                    this.pausedSystems.movingArmies.push({
+                        entity: entity,
+                        progress: movement.movementProgress
+                    });
+                }
+            }
+        });
+    }
+    
+    unpause() {
+        this.isPaused = false;
+        
+        // Restore time-sensitive systems
+        if (this.pausedSystems) {
+            if (this.magicSystem) {
+                this.magicSystem.lastSelectionTime = this.pausedSystems.magicSystemTime;
+            }
+            
+            // Restore movement progress
+            this.pausedSystems.movingArmies.forEach(({ entity, progress }) => {
+                const movement = entity.getComponent('movement');
+                if (movement) {
+                    movement.movementProgress = progress;
+                }
+            });
+        }
+        
+        this.pausedSystems = null;
     }
     
     addPlayer(playerConfig) {}
@@ -142,9 +205,15 @@ class CombatComponent {
 
 class MovementComponent {
     constructor(speed) {
-        this.speed = speed;
+        this.baseSpeed = speed;
+        this.currentSpeed = speed;
         this.path = [];
         this.isMoving = false;
+        this.movementProgress = 0;
+    }
+    
+    calculateEffectiveSpeed(terrainConfig) {
+        return this.baseSpeed * (terrainConfig.movementModifier || 1.0);
     }
 }
 ```
@@ -194,6 +263,9 @@ class Army extends Entity {
         this.units = new Map(); // unitType -> count
         this.spellQueue = [];
         
+        // Army speed is the average of all unique unit type speeds
+        // Example: 100 swordsmen (speed 10) + 50 archers (speed 5) = army speed of 7.5
+        // The quantities (100, 50) don't affect the calculation
         this.addComponent('position', new PositionComponent(0, 0));
         this.addComponent('movement', new MovementComponent(this.calculateSpeed()));
         this.addComponent('combat', new CombatComponent(this.calculatePower()));
@@ -201,18 +273,72 @@ class Army extends Entity {
     
     addUnits(unitType, count) {}
     removeUnits(unitType, count) {}
-    calculatePower() {}
-    calculateSpeed() {}
-    merge(otherArmy) {}
-    split(unitDistribution) {}
+    calculatePower() {
+        let totalPower = 0;
+        this.units.forEach((count, unitType) => {
+            const unitConfig = UNIT_CONFIGS[this.owner.faction][unitType];
+            totalPower += unitConfig.power * count;
+        });
+        return totalPower;
+    }
+    
+    calculateSpeed() {
+        let totalSpeed = 0;
+        let unitTypeCount = 0;
+        
+        // Calculate average speed based on unique unit types only
+        // Unit quantities do not affect army speed
+        this.units.forEach((count, unitType) => {
+            if (count > 0) {  // Only count unit types that are present
+                const unitConfig = UNIT_CONFIGS[this.owner.faction][unitType];
+                totalSpeed += unitConfig.speed;
+                unitTypeCount++;
+            }
+        });
+        
+        // Return average speed of unit types
+        return unitTypeCount > 0 ? totalSpeed / unitTypeCount : 0;
+    }
+    
+    merge(otherArmy) {
+        otherArmy.units.forEach((count, unitType) => {
+            const currentCount = this.units.get(unitType) || 0;
+            this.units.set(unitType, currentCount + count);
+        });
+        
+        // Update components after merge
+        this.getComponent('combat').power = this.calculatePower();
+        this.getComponent('movement').baseSpeed = this.calculateSpeed();
+    }
+    
+    split(unitDistribution) {
+        const newArmy = new Army(generateId(), this.owner);
+        
+        unitDistribution.forEach(({ unitType, count }) => {
+            const currentCount = this.units.get(unitType) || 0;
+            if (currentCount >= count) {
+                newArmy.units.set(unitType, count);
+                this.units.set(unitType, currentCount - count);
+            }
+        });
+        
+        // Update both armies' components
+        this.getComponent('combat').power = this.calculatePower();
+        this.getComponent('movement').baseSpeed = this.calculateSpeed();
+        newArmy.getComponent('combat').power = newArmy.calculatePower();
+        newArmy.getComponent('movement').baseSpeed = newArmy.calculateSpeed();
+        
+        return newArmy;
+    }
 }
 
 class Unit {
     constructor(type, faction) {
         this.type = type;
         this.faction = faction;
+        // Unit properties come from configuration - all units of the same type have identical stats
         this.basePower = UNIT_CONFIGS[faction][type].power;
-        this.baseSpeed = UNIT_CONFIGS[faction][type].speed;
+        this.baseSpeed = UNIT_CONFIGS[faction][type].speed;  // Speed is a property of unit type, not individual units
         this.abilities = UNIT_CONFIGS[faction][type].abilities || [];
     }
 }
@@ -308,53 +434,194 @@ class Minimap extends Phaser.GameObjects.Container {
 ### Configuration Data
 
 ```javascript
+// Centralized configuration system with no magic numbers
 const GAME_CONFIG = {
-    tileSize: 64,
-    defaultMapSize: 64,
-    maxMapSize: 256,
-    minMapSize: 32,
-    baseResourceGeneration: {
-        gold: 60,  // per minute
-        mana: 60   // per minute
+    // Map configuration
+    map: {
+        tileSize: 64,
+        defaultSize: 64,
+        minSize: 32,
+        maxSize: 256,
+        fogOfWarEnabled: true
     },
-    factionBonuses: {
+    
+    // Time configuration (all in milliseconds)
+    time: {
+        baseGameSpeed: 1.0,
+        resourceUpdateInterval: 1000, // 1 second
+        spellSelectionInterval: 60000, // 60 seconds
+        aiDecisionInterval: 10000, // 10 seconds
+        autosaveInterval: 300000 // 5 minutes
+    },
+    
+    // Movement configuration
+    movement: {
+        baseTimePerTile: 1000, // 1 second to cross one tile at speed 1
+        speedUnit: 'tilesPerSecond', // How speed values are interpreted
+        minEffectiveSpeed: 0.1, // Minimum speed to prevent division by zero
+        maxEffectiveSpeed: 1000 // Maximum speed cap
+    },
+    
+    // Resource configuration
+    resources: {
+        baseGeneration: {
+            gold: 60,  // per minute
+            mana: 60   // per minute
+        },
+        startingResources: {
+            gold: 0,
+            mana: 0,
+            wood: 0,
+            stone: 0,
+            mercury: 0,
+            sulfur: 0,
+            crystal: 0
+        },
+        economicVictory: {
+            gold: 10000,
+            rareResourceAmount: 1000
+        }
+    },
+    
+    // Faction configuration
+    factions: {
         human: {
-            manaGeneration: 1.25
+            resourceBonus: {
+                gold: 1.25,
+                mana: 1.25
+            },
+            unitProductionSpeed: 1.0,
+            startingUnits: ['swordsman', 'archer']
         },
         orc: {
-            goldGeneration: 1.25
+            resourceBonus: {
+                gold: 1.25,
+                mana: 1.0
+            },
+            unitProductionSpeed: 1.2,
+            startingUnits: ['warrior', 'archer']
+        }
+    },
+    
+    // Army configuration
+    army: {
+        maxRegularUnits: 7,
+        maxSiegeUnits: 1,
+        mergeDistance: 2, // tiles
+        selectionRadius: 1 // tiles
+    },
+    
+    // Combat configuration
+    combat: {
+        baseDefenseMultiplier: 1.0,
+        castleDefenseMultiplier: 1.5,
+        siegeAntiCastleBonus: 1.5,
+        spellDamageMultiplier: 1.0
+    },
+    
+    // UI configuration
+    ui: {
+        notificationDuration: 5000, // 5 seconds
+        doubleClickTime: 300, // milliseconds
+        scrollSpeed: 10,
+        zoomLevels: [0.5, 0.75, 1.0, 1.25, 1.5],
+        defaultZoom: 1.0
+    },
+    
+    // Performance configuration
+    performance: {
+        maxVisibleEntities: 200,
+        cullingMargin: 100, // pixels
+        pathfindingCacheSize: 100,
+        objectPoolSizes: {
+            projectiles: 50,
+            effects: 100,
+            ui: 20
         }
     }
 };
 
-const TERRAIN_TYPES = {
-    grassland: { movementCost: 1.0, passable: true },
-    mountain: { movementCost: Infinity, passable: false },
-    forest: { movementCost: 2.0, passable: true, combatBonus: 1.1 },
-    water: { movementCost: Infinity, passable: false },
-    road: { movementCost: 0.5, passable: true },
-    desert: { movementCost: 1.5, passable: true, visibilityPenalty: 0.8 },
-    plains: { movementCost: 1.0, passable: true },
-    swamp: { movementCost: 2.0, passable: true, combatBonus: 1.1 },
-    snow: { movementCost: 1.5, passable: true, visibilityPenalty: 0.8 },
-    lake: { movementCost: 2.0, passable: true, combatPenalty: 0.9 }
+// Terrain configuration with movement modifiers
+const TERRAIN_CONFIG = {
+    grassland: { 
+        movementModifier: 1.0, 
+        passable: true,
+        combatModifier: 1.0,
+        visionModifier: 1.0
+    },
+    mountain: { 
+        movementModifier: 0, // impassable
+        passable: false,
+        combatModifier: 1.0,
+        visionModifier: 1.0
+    },
+    forest: { 
+        movementModifier: 0.5, // 50% speed
+        passable: true, 
+        combatModifier: 1.1, // 10% combat bonus
+        visionModifier: 0.8
+    },
+    water: { 
+        movementModifier: 0, // impassable
+        passable: false,
+        combatModifier: 1.0,
+        visionModifier: 1.0
+    },
+    road: { 
+        movementModifier: 2.0, // 200% speed
+        passable: true,
+        combatModifier: 1.0,
+        visionModifier: 1.0
+    },
+    desert: { 
+        movementModifier: 0.67, // ~67% speed
+        passable: true, 
+        combatModifier: 1.0,
+        visionModifier: 0.8
+    },
+    plains: { 
+        movementModifier: 1.0,
+        passable: true,
+        combatModifier: 1.0,
+        visionModifier: 1.0
+    },
+    swamp: { 
+        movementModifier: 0.5, // 50% speed
+        passable: true, 
+        combatModifier: 1.1, // 10% combat bonus
+        visionModifier: 0.9
+    },
+    snow: { 
+        movementModifier: 0.67, // ~67% speed
+        passable: true, 
+        combatModifier: 1.0,
+        visionModifier: 0.8
+    },
+    lake: { 
+        movementModifier: 0.5, // 50% speed
+        passable: true, 
+        combatModifier: 0.9, // 10% combat penalty
+        visionModifier: 1.0
+    }
 };
 
+// Unit configurations with speed values representing tiles per second at base speed
 const UNIT_CONFIGS = {
     human: {
-        swordsman: { power: 5, speed: 10, cost: { gold: 50 } },
-        archer: { power: 8, speed: 5, cost: { gold: 75 }, isRanged: true },
-        knight: { power: 20, speed: 100, cost: { gold: 200 } },
+        // Speed values: tiles per second (higher = faster)
+        swordsman: { power: 5, speed: 10, cost: { gold: 50 } },  // 10 tiles/sec = 0.1 sec per tile
+        archer: { power: 8, speed: 5, cost: { gold: 75 }, isRanged: true },  // 5 tiles/sec = 0.2 sec per tile
+        knight: { power: 20, speed: 100, cost: { gold: 200 } },  // 100 tiles/sec = 0.01 sec per tile (very fast)
         wizard: { power: 15, speed: 10, cost: { gold: 150, mana: 50 }, canCastSpells: true },
         paladin: { power: 50, speed: 80, cost: { gold: 500 }, ability: 'powerBoost' }
     },
     orc: {
         warrior: { power: 6, speed: 10, cost: { gold: 50 } },
         archer: { power: 9, speed: 5, cost: { gold: 75 }, isRanged: true },
-        wolfRider: { power: 15, speed: 120, cost: { gold: 180 } },
+        wolfRider: { power: 15, speed: 120, cost: { gold: 180 } },  // Fastest unit
         shaman: { power: 14, speed: 10, cost: { gold: 140, mana: 40 }, canCastSpells: true },
         berserker: { power: 55, speed: 75, cost: { gold: 550 }, ability: 'rage' },
-        ogre: { power: 30, speed: 15, cost: { gold: 300 }, antiCastle: 1.5 }
+        ogre: { power: 30, speed: 15, cost: { gold: 300 }, antiCastle: 1.5 }  // Slow but powerful
     }
 };
 
@@ -459,13 +726,15 @@ class CombatEngine {
         let defenderPower = defender.getComponent('combat').power;
         
         // Apply terrain modifiers
-        attackerPower *= terrain.combatBonus || 1.0;
-        defenderPower *= terrain.combatBonus || 1.0;
+        const terrainConfig = TERRAIN_CONFIG[terrain.type];
+        attackerPower *= terrainConfig.combatModifier || 1.0;
+        defenderPower *= terrainConfig.combatModifier || 1.0;
         
         // Apply castle defense bonus if applicable
         if (defender.type === 'castle') {
             const defenseComp = defender.getComponent('defense');
-            defenderPower = (defenderPower + defenseComp.buildingPower) * defenseComp.multiplier;
+            const defenseMultiplier = CONFIG.get('combat.castleDefenseMultiplier');
+            defenderPower = (defenderPower + defenseComp.buildingPower) * defenseMultiplier;
         }
         
         // Resolve spells first
@@ -522,12 +791,14 @@ class MagicSystem {
     constructor(gameState) {
         this.gameState = gameState;
         this.spellPool = this.initializeSpellPool();
-        this.selectionInterval = 180000; // 3 minutes
         this.lastSelectionTime = 0;
     }
     
     update(currentTime) {
-        if (currentTime - this.lastSelectionTime >= this.selectionInterval) {
+        if (this.gameState.isPaused) return;
+        
+        const interval = CONFIG.get('time.spellSelectionInterval');
+        if (currentTime - this.lastSelectionTime >= interval) {
             this.triggerSpellSelection();
             this.lastSelectionTime = currentTime;
         }
@@ -621,9 +892,12 @@ class PathfindingSystem {
                 if (closedList.has(neighborKey)) continue;
                 
                 const terrain = this.map.getTerrain(neighbor.x, neighbor.y);
-                if (!terrain.passable) continue;
+                const terrainConfig = TERRAIN_CONFIG[terrain.type];
+                if (!terrainConfig.passable) continue;
                 
-                const tentativeGScore = gScore.get(currentKey) + terrain.movementCost;
+                // Calculate movement cost based on terrain modifier
+                const movementCost = terrainConfig.movementModifier > 0 ? 1 / terrainConfig.movementModifier : Infinity;
+                const tentativeGScore = gScore.get(currentKey) + movementCost;
                 
                 if (!gScore.has(neighborKey) || tentativeGScore < gScore.get(neighborKey)) {
                     cameFrom.set(neighborKey, current);
@@ -698,7 +972,7 @@ class AIController {
     }
     
     getDecisionInterval() {
-        const base = 10000; // 10 seconds
+        const base = CONFIG.get('time.aiDecisionInterval');
         const difficultyMultiplier = {
             easy: 2.0,
             normal: 1.0,
@@ -720,6 +994,342 @@ class Strategy {
     
     execute(gameState) {
         // Implement strategy
+    }
+}
+```
+
+### Movement and Speed System
+
+```javascript
+class MovementSystem {
+    constructor(gameState) {
+        this.gameState = gameState;
+        this.movingArmies = new Map();
+    }
+    
+    moveArmy(army, targetTile) {
+        const movement = army.getComponent('movement');
+        const position = army.getComponent('position');
+        
+        // Calculate path
+        const path = this.gameState.pathfinding.findPath(
+            { x: position.tileX, y: position.tileY },
+            targetTile,
+            army
+        );
+        
+        if (path.length > 0) {
+            movement.path = path;
+            movement.isMoving = true;
+            movement.movementProgress = 0;
+            this.movingArmies.set(army.id, army);
+        }
+    }
+    
+    update(delta) {
+        if (this.gameState.isPaused) return;
+        
+        this.movingArmies.forEach((army, armyId) => {
+            const movement = army.getComponent('movement');
+            const position = army.getComponent('position');
+            
+            if (!movement.isMoving || movement.path.length === 0) {
+                this.movingArmies.delete(armyId);
+                return;
+            }
+            
+            // Get current terrain
+            const currentTerrain = this.gameState.map.getTerrain(position.tileX, position.tileY);
+            const terrainConfig = TERRAIN_CONFIG[currentTerrain.type];
+            
+            // Calculate effective speed
+            const effectiveSpeed = movement.calculateEffectiveSpeed(terrainConfig);
+            
+            // Calculate effective speed and movement progress
+            const effectiveSpeed = movement.baseSpeed * terrainConfig.movementModifier;
+            const baseTimePerTile = CONFIG.get('movement.baseTimePerTile');
+            const timePerTile = baseTimePerTile / Math.max(effectiveSpeed, CONFIG.get('movement.minEffectiveSpeed'));
+            
+            // Movement progress: how much of current tile crossing is complete
+            const progressThisFrame = delta / timePerTile; // delta in ms, timePerTile in ms
+            movement.movementProgress += progressThisFrame;
+            
+            // Check if reached next tile
+            if (movement.movementProgress >= 1.0) {
+                movement.movementProgress = 0;
+                const nextTile = movement.path.shift();
+                
+                position.tileX = nextTile.x;
+                position.tileY = nextTile.y;
+                position.x = nextTile.x * CONFIG.get('map.tileSize');
+                position.y = nextTile.y * CONFIG.get('map.tileSize');
+                
+                if (movement.path.length === 0) {
+                    movement.isMoving = false;
+                    this.movingArmies.delete(armyId);
+                }
+            }
+        });
+    }
+    
+    calculateTravelTime(army, fromTile, toTile) {
+        const path = this.gameState.pathfinding.findPath(fromTile, toTile, army);
+        if (path.length === 0) return Infinity;
+        
+        const movement = army.getComponent('movement');
+        const baseTimePerTile = CONFIG.get('movement.baseTimePerTile'); // milliseconds
+        let totalTime = 0;
+        
+        // Calculate time for each tile in path
+        path.forEach((tile, index) => {
+            const terrain = this.gameState.map.getTerrain(tile.x, tile.y);
+            const terrainConfig = TERRAIN_CONFIG[terrain.type];
+            
+            // Calculate effective speed: armySpeed * terrainModifier
+            const effectiveSpeed = movement.baseSpeed * terrainConfig.movementModifier;
+            
+            // Time to cross one tile = baseTimePerTile / effectiveSpeed
+            // Example: baseTime=1000ms, armySpeed=10, terrainModifier=2.0 (road)
+            // effectiveSpeed = 10 * 2.0 = 20
+            // timePerTile = 1000 / 20 = 50ms per tile
+            const timePerTile = baseTimePerTile / Math.max(effectiveSpeed, CONFIG.get('movement.minEffectiveSpeed'));
+            totalTime += timePerTile;
+        });
+        
+        return totalTime; // Return in milliseconds
+    }
+}
+```
+
+### Movement Calculation Examples
+
+Here are concrete examples of how army speed translates to world map movement:
+
+#### Example 1: Basic Army Movement
+- **Army Composition**: 50 Swordsmen (speed 10) + 20 Archers (speed 5)
+- **Army Speed**: (10 + 5) / 2 = 7.5 tiles per second
+- **Terrain**: Grassland (movement modifier 1.0)
+- **Effective Speed**: 7.5 * 1.0 = 7.5 tiles per second
+- **Time per Tile**: 1000ms / 7.5 = 133ms per tile
+- **To cross 10 tiles**: 10 * 133ms = 1.33 seconds
+
+#### Example 2: Road vs Swamp Movement
+Same army (speed 7.5), different terrains:
+- **Road (modifier 2.0)**: 
+  - Effective Speed: 7.5 * 2.0 = 15 tiles/sec
+  - Time per tile: 1000ms / 15 = 67ms per tile
+- **Swamp (modifier 0.5)**:
+  - Effective Speed: 7.5 * 0.5 = 3.75 tiles/sec  
+  - Time per tile: 1000ms / 3.75 = 267ms per tile
+- **Speed Difference**: Road is 4x faster than swamp (267ms vs 67ms per tile)
+
+#### Example 3: Mixed Terrain Path
+Army traveling 5 tiles: 2 grassland + 2 road + 1 swamp
+- **Grassland**: 2 tiles * 133ms = 266ms
+- **Road**: 2 tiles * 67ms = 134ms  
+- **Swamp**: 1 tile * 267ms = 267ms
+- **Total Travel Time**: 266 + 134 + 267 = 667ms
+
+#### Example 4: Fast vs Slow Army Comparison
+- **Fast Army**: 10 Knights (speed 100) = 100 tiles/sec
+  - Road: 1000ms / (100 * 2.0) = 5ms per tile
+  - Swamp: 1000ms / (100 * 0.5) = 20ms per tile
+- **Slow Army**: 10 Archers (speed 5) = 5 tiles/sec  
+  - Road: 1000ms / (5 * 2.0) = 100ms per tile
+  - Swamp: 1000ms / (5 * 0.5) = 400ms per tile
+- **Speed Ratio**: Knights are 20x faster on road, swamp (400ms vs 20ms per tile)
+
+### Configuration Management System
+
+```javascript
+class ConfigurationManager {
+    constructor() {
+        this.config = this.deepClone(GAME_CONFIG);
+        this.listeners = new Map();
+    }
+    
+    get(path) {
+        const keys = path.split('.');
+        let value = this.config;
+        
+        for (const key of keys) {
+            if (value && typeof value === 'object' && key in value) {
+                value = value[key];
+            } else {
+                return undefined;
+            }
+        }
+        
+        return value;
+    }
+    
+    set(path, newValue) {
+        const keys = path.split('.');
+        const lastKey = keys.pop();
+        let target = this.config;
+        
+        for (const key of keys) {
+            if (!(key in target)) {
+                target[key] = {};
+            }
+            target = target[key];
+        }
+        
+        const oldValue = target[lastKey];
+        target[lastKey] = newValue;
+        
+        // Notify listeners
+        this.notifyListeners(path, oldValue, newValue);
+    }
+    
+    addListener(path, callback) {
+        if (!this.listeners.has(path)) {
+            this.listeners.set(path, []);
+        }
+        this.listeners.get(path).push(callback);
+    }
+    
+    notifyListeners(path, oldValue, newValue) {
+        // Notify exact path listeners
+        if (this.listeners.has(path)) {
+            this.listeners.get(path).forEach(callback => {
+                callback(oldValue, newValue, path);
+            });
+        }
+        
+        // Notify parent path listeners
+        const parts = path.split('.');
+        for (let i = parts.length - 1; i > 0; i--) {
+            const parentPath = parts.slice(0, i).join('.');
+            if (this.listeners.has(parentPath)) {
+                this.listeners.get(parentPath).forEach(callback => {
+                    callback(oldValue, newValue, path);
+                });
+            }
+        }
+    }
+    
+    deepClone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    }
+    
+    exportConfig() {
+        return this.deepClone(this.config);
+    }
+    
+    importConfig(newConfig) {
+        const oldConfig = this.config;
+        this.config = this.deepClone(newConfig);
+        this.notifyListeners('', oldConfig, this.config);
+    }
+}
+
+// Global configuration instance
+const CONFIG = new ConfigurationManager();
+```
+
+### Pause System Implementation
+
+```javascript
+class PauseManager {
+    constructor(game) {
+        this.game = game;
+        this.pauseOverlay = null;
+        this.pauseState = {
+            isPaused: false,
+            pauseTime: 0,
+            pauseDuration: 0
+        };
+    }
+    
+    togglePause() {
+        if (this.pauseState.isPaused) {
+            this.unpause();
+        } else {
+            this.pause();
+        }
+    }
+    
+    pause() {
+        if (this.pauseState.isPaused) return;
+        
+        this.pauseState.isPaused = true;
+        this.pauseState.pauseTime = Date.now();
+        
+        // Pause all game systems
+        this.game.state.pause();
+        
+        // Pause Phaser physics and timers
+        this.game.physics.pause();
+        this.game.time.paused = true;
+        
+        // Show pause overlay
+        this.showPauseOverlay();
+        
+        // Dispatch pause event
+        this.game.events.emit('gamePaused');
+    }
+    
+    unpause() {
+        if (!this.pauseState.isPaused) return;
+        
+        this.pauseState.isPaused = false;
+        this.pauseState.pauseDuration = Date.now() - this.pauseState.pauseTime;
+        
+        // Unpause all game systems
+        this.game.state.unpause();
+        
+        // Resume Phaser physics and timers
+        this.game.physics.resume();
+        this.game.time.paused = false;
+        
+        // Hide pause overlay
+        this.hidePauseOverlay();
+        
+        // Dispatch unpause event
+        this.game.events.emit('gameUnpaused', this.pauseState.pauseDuration);
+    }
+    
+    showPauseOverlay() {
+        if (!this.pauseOverlay) {
+            this.pauseOverlay = this.game.add.container(0, 0);
+            
+            // Semi-transparent background
+            const bg = this.game.add.rectangle(
+                this.game.scale.width / 2,
+                this.game.scale.height / 2,
+                this.game.scale.width,
+                this.game.scale.height,
+                0x000000,
+                0.5
+            );
+            
+            // Pause text
+            const pauseText = this.game.add.text(
+                this.game.scale.width / 2,
+                this.game.scale.height / 2,
+                'PAUSED',
+                {
+                    fontSize: '48px',
+                    fontFamily: 'Arial',
+                    color: '#ffffff',
+                    stroke: '#000000',
+                    strokeThickness: 4
+                }
+            );
+            pauseText.setOrigin(0.5);
+            
+            this.pauseOverlay.add([bg, pauseText]);
+        }
+        
+        this.pauseOverlay.setVisible(true);
+        this.pauseOverlay.setDepth(10000); // Ensure it's on top
+    }
+    
+    hidePauseOverlay() {
+        if (this.pauseOverlay) {
+            this.pauseOverlay.setVisible(false);
+        }
     }
 }
 ```
