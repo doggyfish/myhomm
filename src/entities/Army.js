@@ -257,6 +257,66 @@ export class Army extends Entity {
             positionComponent.setTilePosition(tileX, tileY);
         }
     }
+
+    /**
+     * Get current combat power from combat component
+     * @returns {number} Current combat power
+     */
+    getCurrentPower() {
+        const combatComponent = this.getComponent('combat');
+        return combatComponent ? combatComponent.power : 0;
+    }
+
+    /**
+     * Apply combat losses to army units
+     * @param {number} lossAmount - Amount of power lost
+     */
+    applyCombatLosses(lossAmount) {
+        if (lossAmount <= 0) return;
+
+        // Calculate total current power to determine loss percentage
+        const totalPower = this.calculatePower();
+        if (totalPower <= 0) return;
+
+        const lossPercentage = Math.min(1.0, lossAmount / totalPower);
+
+        // Apply losses proportionally to all unit types
+        const newUnits = new Map();
+        this.units.forEach((count, unitType) => {
+            const survivingCount = Math.floor(count * (1 - lossPercentage));
+            if (survivingCount > 0) {
+                newUnits.set(unitType, survivingCount);
+            }
+        });
+
+        // Update army with surviving units
+        this.units = newUnits;
+        this.updateArmyStats();
+    }
+
+    /**
+     * Check if army can engage in combat
+     * @returns {boolean} True if army can fight
+     */
+    canCombat() {
+        const combatComponent = this.getComponent('combat');
+        return combatComponent && combatComponent.power > 0 && this.hasUnits();
+    }
+
+    /**
+     * Get spell effects from army's spell queue
+     * @returns {Array} Array of spell effects
+     */
+    getSpellEffects() {
+        return this.spellQueue ? this.spellQueue.slice() : [];
+    }
+
+    /**
+     * Clear spell queue after combat
+     */
+    clearSpellQueue() {
+        this.spellQueue = [];
+    }
     
     destroy() {
         this.units.clear();

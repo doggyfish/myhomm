@@ -209,6 +209,41 @@ export class Castle extends Entity {
         return details;
     }
 
+    /**
+     * Check if castle can defend (for combat system)
+     * @returns {boolean} True if castle has defense power
+     */
+    canDefend() {
+        return this.getTotalDefensePower() > 0;
+    }
+
+    /**
+     * Apply siege damage to castle defenses
+     * @param {number} damage - Damage amount to apply
+     */
+    applySiegeDamage(damage) {
+        const defenseComponent = this.getComponent('defense');
+        if (defenseComponent) {
+            // Apply damage to walls first
+            defenseComponent.damageWalls(damage);
+        }
+
+        // Apply damage to garrison if present
+        if (this.garrisonArmy && damage > 0) {
+            const combatComponent = this.garrisonArmy.getComponent('combat');
+            if (combatComponent) {
+                const remainingDamage = Math.max(0, damage * 0.3); // 30% damage to garrison
+                const newPower = Math.max(0, combatComponent.power - remainingDamage);
+                combatComponent.updatePower(newPower);
+                
+                // Apply unit losses to garrison army
+                if (this.garrisonArmy.applyCombatLosses) {
+                    this.garrisonArmy.applyCombatLosses(remainingDamage);
+                }
+            }
+        }
+    }
+
     // Position helpers
     getPosition() {
         const positionComponent = this.getComponent('position');

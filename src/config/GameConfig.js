@@ -80,7 +80,12 @@ export const GAME_CONFIG = {
         baseDefenseMultiplier: 1.0,
         castleDefenseMultiplier: 1.5,
         siegeAntiCastleBonus: 1.5,
-        spellDamageMultiplier: 1.0
+        spellDamageMultiplier: 1.0,
+        maxCombatResolutionTime: 100, // milliseconds
+        drawThreshold: 0.05, // 5% power difference for draw
+        attackerLossMultiplier: 0.3, // 30% losses for winner
+        defenderLossMultiplier: 0.5, // 50% losses relative to loser power
+        eliminationThreshold: 0.01 // 1% power minimum to avoid elimination
     },
     
     // UI configuration
@@ -89,7 +94,34 @@ export const GAME_CONFIG = {
         doubleClickTime: 300, // milliseconds
         scrollSpeed: 10,
         zoomLevels: [0.5, 0.75, 1.0, 1.25, 1.5],
-        defaultZoom: 1.0
+        defaultZoom: 1.0,
+        fontFamily: 'Arial'
+    },
+    
+    // Pause system configuration
+    pause: {
+        maxResponseTime: 200, // milliseconds - pause/unpause must complete within this time
+        inputCooldown: 100, // milliseconds - prevent rapid toggle
+        overlay: {
+            backgroundAlpha: 0.5, // Semi-transparent background
+            mainTextSize: '48px',
+            mainTextColor: '#FFFFFF',
+            instructionTextSize: '24px',
+            instructionTextColor: '#CCCCCC',
+            reasonTextSize: '18px',
+            reasonTextColor: '#FFCC00',
+            statsTextSize: '14px',
+            statsTextColor: '#999999',
+            transitionTime: 300, // milliseconds - fade in/out duration
+            depth: 10000 // Z-index for overlay
+        }
+    },
+    
+    // Debug configuration  
+    debug: {
+        showPauseStats: false, // Show pause statistics in overlay
+        logPauseEvents: true, // Log pause events to console
+        enablePerformanceTiming: true // Track pause/unpause performance
     },
     
     // Performance configuration

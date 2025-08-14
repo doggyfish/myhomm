@@ -5,6 +5,9 @@ import { CONFIG } from '../config/ConfigurationManager.js';
 import { Castle } from '../entities/Castle.js';
 import { Player } from '../game/Player.js';
 import { CastleOverlay } from '../ui/CastleOverlay.js';
+import { PauseSystem } from '../systems/PauseSystem.js';
+import { PauseOverlay } from '../ui/PauseOverlay.js';
+import { PauseEvents } from '../events/PauseEvents.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
@@ -38,6 +41,9 @@ export default class GameScene extends Phaser.Scene {
 
         // Add UI overlay
         this.createUI();
+
+        // Initialize pause system
+        this.initializePauseSystem();
 
         // Add tile inspection
         this.enableTileInspection();
@@ -74,7 +80,8 @@ export default class GameScene extends Phaser.Scene {
             'Click tile - Inspect tile\n' +
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
-            'ESC - Back to menu',
+            'SPACE/P/ESC - Pause/Unpause\n' +
+            'Shift+ESC - Back to menu',
             {
                 font: '12px Arial',
                 fill: '#ffffff'
@@ -114,8 +121,18 @@ export default class GameScene extends Phaser.Scene {
 
         this.uiContainer.add([backButton, backText]);
 
-        // ESC key to go back
-        this.input.keyboard.on('keydown-ESC', () => this.goBack());
+        // Pause controls - ESC and SPACE bar
+        this.input.keyboard.on('keydown-ESC', () => this.togglePause());
+        this.input.keyboard.on('keydown-SPACE', () => this.togglePause());
+        this.input.keyboard.on('keydown-P', () => this.togglePause());
+        
+        // Back to menu (Shift+ESC)
+        this.input.keyboard.createCombo([Phaser.Input.Keyboard.KeyCodes.SHIFT, Phaser.Input.Keyboard.KeyCodes.ESC], {
+            resetOnMatch: true,
+            maxKeyDelay: 0,
+            resetOnWrongKey: false
+        });
+        this.input.keyboard.on('keycombomatch', () => this.goBack());
         
         // Fog controls
         this.input.keyboard.on('keydown-F', () => this.toggleFog());
@@ -289,7 +306,115 @@ export default class GameScene extends Phaser.Scene {
         this.scene.start('MainMenuScene');
     }
 
+    // Pause System Methods
+
+    /**
+     * Initialize the comprehensive pause system
+     */
+    initializePauseSystem() {
+        // Create pause system instance
+        this.pauseSystem = new PauseSystem();
+        
+        // Create pause overlay
+        this.pauseOverlay = new PauseOverlay(this);
+        
+        // Set up pause event listeners
+        this.pauseSystem.on(PauseEvents.PAUSE_ACTIVATED, (eventData) => {
+            this.onPauseActivated(eventData);
+        });
+        
+        this.pauseSystem.on(PauseEvents.PAUSE_DEACTIVATED, (eventData) => {
+            this.onPauseDeactivated(eventData);
+        });
+        
+        this.pauseSystem.on(PauseEvents.PAUSE_ERROR, (eventData) => {
+            console.error('Pause system error:', eventData);
+        });
+
+        // Register systems that need pause coordination
+        // Note: These would be registered when systems are created
+        // For now, we'll register them when they're available
+    }
+
+    /**
+     * Toggle pause state
+     */
+    togglePause() {
+        if (this.pauseSystem) {
+            const newPauseState = this.pauseSystem.toggle('user');
+            console.log(`Game ${newPauseState ? 'paused' : 'unpaused'} by user input`);
+        }
+    }
+
+    /**
+     * Handle pause activation
+     */
+    onPauseActivated(eventData) {
+        console.log('Pause activated:', eventData);
+        
+        // Show pause overlay
+        if (this.pauseOverlay) {
+            this.pauseOverlay.show(eventData.reason, CONFIG.get('debug.showPauseStats'));
+        }
+
+        // Pause Phaser scene physics and tweens
+        this.physics?.pause();
+        this.tweens.pauseAll();
+        this.time.paused = true;
+
+        // Update pause overlay with statistics if enabled
+        if (this.pauseOverlay && CONFIG.get('debug.showPauseStats')) {
+            this.updatePauseStats();
+        }
+    }
+
+    /**
+     * Handle pause deactivation
+     */
+    onPauseDeactivated(eventData) {
+        console.log('Pause deactivated:', eventData);
+        
+        // Hide pause overlay
+        if (this.pauseOverlay) {
+            this.pauseOverlay.hide();
+        }
+
+        // Resume Phaser scene physics and tweens
+        this.physics?.resume();
+        this.tweens.resumeAll();
+        this.time.paused = false;
+    }
+
+    /**
+     * Update pause statistics display
+     */
+    updatePauseStats() {
+        if (this.pauseSystem && this.pauseOverlay) {
+            const stats = this.pauseSystem.getStats();
+            this.pauseOverlay.updateStats(stats);
+        }
+    }
+
+    /**
+     * Register a system with the pause system
+     */
+    registerPausableSystem(system, systemId) {
+        if (this.pauseSystem && system) {
+            this.pauseSystem.registerPausableSystem(system, systemId);
+        }
+    }
+
     destroy() {
+        // Destroy pause system
+        if (this.pauseSystem) {
+            this.pauseSystem.destroy();
+        }
+        
+        // Destroy pause overlay
+        if (this.pauseOverlay) {
+            this.pauseOverlay.destroy();
+        }
+
         if (this.tilemapRenderer) {
             this.tilemapRenderer.destroy();
         }
