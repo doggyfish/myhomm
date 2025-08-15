@@ -35,6 +35,8 @@ export class GameStateManager {
         this.players.forEach(player => {
             if (player.isAlive) {
                 player.resourceManager.update(adjustedDelta);
+                // Update AI players
+                player.updateAI(this.getGameState(), adjustedDelta);
             }
         });
         
@@ -163,7 +165,22 @@ export class GameStateManager {
     addPlayer(player) {
         if (!this.players.find(p => p.id === player.id)) {
             this.players.push(player);
+            
+            // Initialize AI controller if this is an AI player
+            if (player.isAI && !player.aiController) {
+                this.initializeAIPlayer(player);
+            }
         }
+    }
+
+    initializeAIPlayer(player, difficulty = 'medium') {
+        // Import AI classes - needs to be dynamic to avoid circular imports
+        import('../ai/AIController.js').then(({ AIController }) => {
+            const aiController = new AIController(player, difficulty);
+            player.setAIController(aiController);
+        }).catch(error => {
+            console.error(`Failed to initialize AI for player ${player.id}:`, error);
+        });
     }
     
     removePlayer(playerId) {
@@ -339,6 +356,19 @@ export class GameStateManager {
         return this.winner !== null;
     }
     
+    getGameState() {
+        return {
+            players: this.players,
+            entities: this.entities,
+            currentTick: this.currentTick,
+            gameSpeed: this.gameSpeed,
+            isPaused: this.isPaused,
+            winner: this.winner,
+            gameStartTime: this.gameStartTime,
+            totalPausedTime: this.totalPausedTime
+        };
+    }
+
     getGameDuration() {
         return Date.now() - this.gameStartTime;
     }

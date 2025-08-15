@@ -10,6 +10,7 @@ export class Player {
         this.spellLibrary = [];
         this.isAlive = true;
         this.color = this.assignColor();
+        this.aiController = null; // Will be set if this is an AI player
     }
     
     assignColor() {
@@ -101,6 +102,23 @@ export class Player {
         return `Player(${this.id}, ${this.name}, ${this.faction}, AI: ${this.isAI})`;
     }
     
+    setAIController(aiController) {
+        this.aiController = aiController;
+    }
+
+    updateAI(gameState, deltaTime) {
+        if (this.isAI && this.aiController) {
+            this.aiController.update(gameState, deltaTime);
+        }
+    }
+
+    getAIStatus() {
+        if (this.isAI && this.aiController) {
+            return this.aiController.getStatus();
+        }
+        return null;
+    }
+
     toJSON() {
         return {
             id: this.id,

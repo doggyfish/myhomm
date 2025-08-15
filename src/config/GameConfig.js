@@ -17,6 +17,78 @@ export const GAME_CONFIG = {
         aiDecisionInterval: 10000, // 10 seconds
         autosaveInterval: 300000 // 5 minutes
     },
+
+    // AI configuration
+    ai: {
+        decisionInterval: 2000, // Base decision interval in milliseconds
+        maxDecisionTime: 500, // Maximum time per decision cycle
+        strategyEvaluationInterval: 1000, // How often strategies evaluate
+        debugMode: false, // Enable AI debug logging
+        scoutingRange: 15, // Tiles for scouting operations
+        retreatThreshold: 0.3, // Army strength threshold for retreat
+        reinforcementThreshold: 0.7, // Strength threshold for requesting reinforcement
+        explorationPriority: 40, // Base priority for exploration
+        threatAnalysisRange: 10, // Range for threat analysis
+        buildingPriorities: {
+            'townHall': 100,
+            'goldMine': 90,
+            'lumber_mill': 85,
+            'quarry': 80,
+            'mage_tower': 75,
+            'barracks': 70,
+            'archery_range': 65,
+            'stable': 60,
+            'wall': 50
+        },
+        unitPriorities: {
+            'swordsman': 80,
+            'archer': 75,
+            'knight': 90,
+            'guard': 70,
+            'wizard': 85
+        },
+        resourceThresholds: {
+            gold: 1000,
+            wood: 500,
+            stone: 300,
+            mana: 200
+        },
+        armyComposition: {
+            'balanced': { 'swordsman': 0.4, 'archer': 0.4, 'knight': 0.2 },
+            'offensive': { 'knight': 0.5, 'swordsman': 0.3, 'archer': 0.2 },
+            'defensive': { 'guard': 0.5, 'archer': 0.3, 'swordsman': 0.2 }
+        },
+        difficulty: {
+            'easy': {
+                decisionInterval: 3000,
+                resourceThresholds: { gold: 800, wood: 400, stone: 250, mana: 150 },
+                buildingPriorities: {
+                    'townHall': 80, 'goldMine': 70, 'lumber_mill': 65, 'quarry': 60,
+                    'mage_tower': 55, 'barracks': 50, 'archery_range': 45, 'stable': 40, 'wall': 30
+                }
+            },
+            'medium': {
+                decisionInterval: 2000,
+                resourceThresholds: { gold: 1000, wood: 500, stone: 300, mana: 200 }
+            },
+            'hard': {
+                decisionInterval: 1500,
+                resourceThresholds: { gold: 1200, wood: 600, stone: 350, mana: 250 },
+                buildingPriorities: {
+                    'townHall': 120, 'goldMine': 110, 'lumber_mill': 105, 'quarry': 100,
+                    'mage_tower': 95, 'barracks': 90, 'archery_range': 85, 'stable': 80, 'wall': 70
+                }
+            },
+            'expert': {
+                decisionInterval: 1000,
+                resourceThresholds: { gold: 1500, wood: 750, stone: 400, mana: 300 },
+                buildingPriorities: {
+                    'townHall': 140, 'goldMine': 130, 'lumber_mill': 125, 'quarry': 120,
+                    'mage_tower': 115, 'barracks': 110, 'archery_range': 105, 'stable': 100, 'wall': 90
+                }
+            }
+        }
+    },
     
     // Movement configuration
     movement: {

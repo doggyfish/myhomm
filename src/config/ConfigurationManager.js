@@ -105,5 +105,16 @@ export class ConfigurationManager {
     }
 }
 
+// Singleton instance
+let instance = null;
+
+// Singleton pattern implementation
+ConfigurationManager.getInstance = function() {
+    if (!instance) {
+        instance = new ConfigurationManager();
+    }
+    return instance;
+};
+
 // Global configuration instance
 export const CONFIG = new ConfigurationManager();
