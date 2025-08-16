@@ -3,6 +3,7 @@ import { TilemapGenerator } from '../world/TilemapGenerator.js';
 import { TilemapRenderer } from '../world/TilemapRenderer.js';
 import { CONFIG } from '../config/ConfigurationManager.js';
 import { Castle } from '../entities/Castle.js';
+import { Army } from '../entities/Army.js';
 import { Player } from '../game/Player.js';
 import { CastleOverlay } from '../ui/CastleOverlay.js';
 import { PauseSystem } from '../systems/PauseSystem.js';
@@ -215,6 +216,17 @@ export default class GameScene extends Phaser.Scene {
                     player
                 );
                 
+                // Create initial garrison army for testing
+                if (index === 0) { // Only for player castle
+                    const garrison = new Army(`garrison_${index}`, player);
+                    
+                    // Add some test units
+                    garrison.addUnits('warrior', 10);
+                    garrison.addUnits('archer', 5);
+                    
+                    castle.setGarrisonArmy(garrison);
+                }
+                
                 // Initialize fog of war around castle
                 if (this.tilemapRenderer && this.tilemapRenderer.fogOfWar) {
                     this.tilemapRenderer.fogOfWar.updateVisionFromCastles([castlePos], index);
@@ -340,9 +352,16 @@ export default class GameScene extends Phaser.Scene {
      * Toggle pause state
      */
     togglePause() {
-        if (this.pauseSystem) {
-            const newPauseState = this.pauseSystem.toggle('user');
-            console.log(`Game ${newPauseState ? 'paused' : 'unpaused'} by user input`);
+        try {
+            if (this.pauseSystem) {
+                const wasPaused = this.pauseSystem.isPaused();
+                const result = this.pauseSystem.toggle('user');
+                console.log(`Pause toggle: was ${wasPaused}, now ${this.pauseSystem.isPaused()}, result: ${result}`);
+            } else {
+                console.warn('Pause system not initialized');
+            }
+        } catch (error) {
+            console.error('Error in togglePause:', error);
         }
     }
 
@@ -350,21 +369,27 @@ export default class GameScene extends Phaser.Scene {
      * Handle pause activation
      */
     onPauseActivated(eventData) {
-        console.log('Pause activated:', eventData);
-        
-        // Show pause overlay
-        if (this.pauseOverlay) {
-            this.pauseOverlay.show(eventData.reason, CONFIG.get('debug.showPauseStats'));
-        }
+        try {
+            console.log('Pause activated:', eventData);
+            
+            // Show pause overlay
+            if (this.pauseOverlay) {
+                this.pauseOverlay.show(eventData.reason, CONFIG.get('debug.showPauseStats'));
+            }
 
-        // Pause Phaser scene physics and tweens
-        this.physics?.pause();
-        this.tweens.pauseAll();
-        this.time.paused = true;
+            // Pause Phaser scene physics and tweens
+            if (this.physics) {
+                this.physics.pause();
+            }
+            this.tweens.pauseAll();
+            this.time.paused = true;
 
-        // Update pause overlay with statistics if enabled
-        if (this.pauseOverlay && CONFIG.get('debug.showPauseStats')) {
-            this.updatePauseStats();
+            // Update pause overlay with statistics if enabled
+            if (this.pauseOverlay && CONFIG.get('debug.showPauseStats')) {
+                this.updatePauseStats();
+            }
+        } catch (error) {
+            console.error('Error in onPauseActivated:', error);
         }
     }
 
@@ -372,17 +397,23 @@ export default class GameScene extends Phaser.Scene {
      * Handle pause deactivation
      */
     onPauseDeactivated(eventData) {
-        console.log('Pause deactivated:', eventData);
-        
-        // Hide pause overlay
-        if (this.pauseOverlay) {
-            this.pauseOverlay.hide();
-        }
+        try {
+            console.log('Pause deactivated:', eventData);
+            
+            // Hide pause overlay
+            if (this.pauseOverlay) {
+                this.pauseOverlay.hide();
+            }
 
-        // Resume Phaser scene physics and tweens
-        this.physics?.resume();
-        this.tweens.resumeAll();
-        this.time.paused = false;
+            // Resume Phaser scene physics and tweens
+            if (this.physics) {
+                this.physics.resume();
+            }
+            this.tweens.resumeAll();
+            this.time.paused = false;
+        } catch (error) {
+            console.error('Error in onPauseDeactivated:', error);
+        }
     }
 
     /**

@@ -94,6 +94,20 @@ export class CastleOverlay {
             fill: '#ffffff'
         }).setOrigin(0.5);
 
+        // Dispatch Army button
+        this.dispatchArmyBtn = this.scene.add.rectangle(panelX + 150, panelY + 130, 120, 35, 0x3498db)
+            .setStrokeStyle(2, 0x2980b9)
+            .setOrigin(0, 0)
+            .setInteractive()
+            .on('pointerdown', () => this.dispatchArmy())
+            .on('pointerover', () => this.dispatchArmyBtn.setFillStyle(0x2980b9))
+            .on('pointerout', () => this.dispatchArmyBtn.setFillStyle(0x3498db));
+
+        this.dispatchArmyBtnText = this.scene.add.text(panelX + 210, panelY + 147, 'Dispatch Army', {
+            font: '12px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
         // Close button
         this.closeBtn = this.scene.add.rectangle(panelX + panelWidth - 30, panelY + 10, 25, 25, 0xe74c3c)
             .setStrokeStyle(2, 0xc0392b)
@@ -118,6 +132,8 @@ export class CastleOverlay {
             this.buildingCountText,
             this.manageBuildingsBtn,
             this.manageBuildingsBtnText,
+            this.dispatchArmyBtn,
+            this.dispatchArmyBtnText,
             this.closeBtn,
             this.closeBtnText
         ]);
@@ -220,6 +236,125 @@ export class CastleOverlay {
         }
     }
 
+    dispatchArmy() {
+        if (!this.castle || !this.castle.hasGarrison()) {
+            console.log('No garrison army to dispatch');
+            // Show message to user
+            this.showNoGarrisonMessage();
+            return;
+        }
+
+        const garrison = this.castle.getGarrisonArmy();
+        if (!garrison) {
+            console.log('Garrison army not found');
+            return;
+        }
+
+        // Create simple dispatch confirmation
+        this.showDispatchConfirmation(garrison);
+    }
+
+    showNoGarrisonMessage() {
+        // Temporarily show message on the garrison info text
+        const originalText = this.garrisonInfoText.text;
+        this.garrisonInfoText.setText('No garrison army to dispatch').setFill('#e74c3c');
+        
+        // Reset after 2 seconds
+        this.scene.time.delayedCall(2000, () => {
+            this.garrisonInfoText.setText(originalText).setFill('#ecf0f1');
+        });
+    }
+
+    showDispatchConfirmation(garrison) {
+        const screenCenterX = this.scene.cameras.main.width / 2;
+        const screenCenterY = this.scene.cameras.main.height / 2;
+
+        // Create confirmation dialog
+        this.confirmationContainer = this.scene.add.container(screenCenterX, screenCenterY).setDepth(200);
+
+        // Background
+        const confirmBg = this.scene.add.rectangle(0, 0, 300, 200, 0x2c3e50, 0.95)
+            .setStrokeStyle(2, 0x34495e);
+
+        // Title
+        const titleText = this.scene.add.text(0, -70, 'Dispatch Army', {
+            font: '16px Arial',
+            fill: '#ffffff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5);
+
+        // Garrison info
+        const unitCount = garrison.getTotalUnitCount ? garrison.getTotalUnitCount() : 0;
+        const totalPower = garrison.getCurrentPower ? garrison.getCurrentPower() : 0;
+        
+        const infoText = this.scene.add.text(0, -30, 
+            `Units: ${unitCount}\nTotal Power: ${totalPower}`, {
+            font: '12px Arial',
+            fill: '#ecf0f1',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        // Confirm button
+        const confirmBtn = this.scene.add.rectangle(-75, 40, 100, 35, 0x27ae60)
+            .setStrokeStyle(2, 0x229954)
+            .setInteractive()
+            .on('pointerdown', () => this.confirmDispatch(garrison))
+            .on('pointerover', () => confirmBtn.setFillStyle(0x229954))
+            .on('pointerout', () => confirmBtn.setFillStyle(0x27ae60));
+
+        const confirmBtnText = this.scene.add.text(-75, 40, 'Dispatch', {
+            font: '12px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
+        // Cancel button
+        const cancelBtn = this.scene.add.rectangle(75, 40, 100, 35, 0xe74c3c)
+            .setStrokeStyle(2, 0xc0392b)
+            .setInteractive()
+            .on('pointerdown', () => this.cancelDispatch())
+            .on('pointerover', () => cancelBtn.setFillStyle(0xc0392b))
+            .on('pointerout', () => cancelBtn.setFillStyle(0xe74c3c));
+
+        const cancelBtnText = this.scene.add.text(75, 40, 'Cancel', {
+            font: '12px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
+        this.confirmationContainer.add([
+            confirmBg, titleText, infoText, 
+            confirmBtn, confirmBtnText, 
+            cancelBtn, cancelBtnText
+        ]);
+    }
+
+    confirmDispatch(garrison) {
+        // Remove garrison from castle
+        this.castle.setGarrisonArmy(null);
+
+        // Create army on the map at castle position
+        const castlePos = this.castle.getPosition();
+        
+        // Move army to an adjacent tile (for simplicity, move one tile to the right)
+        garrison.setPosition(castlePos.x + 1, castlePos.y);
+        garrison.isGarrison = false;
+        garrison.location = null;
+
+        console.log(`Army dispatched from ${this.castle.name} to position (${castlePos.x + 1}, ${castlePos.y})`);
+
+        // Clean up confirmation dialog
+        this.cancelDispatch();
+
+        // Update the castle display
+        this.updateDisplay();
+    }
+
+    cancelDispatch() {
+        if (this.confirmationContainer) {
+            this.confirmationContainer.destroy();
+            this.confirmationContainer = null;
+        }
+    }
+
     updateDisplay() {
         if (!this.castle) return;
 
@@ -240,6 +375,16 @@ export class CastleOverlay {
         this.defenseText.setText(`Defense: ${Math.floor(defenseDetails.totalCastlePower)} power`);
         
         this.buildingCountText.setText(`Buildings: ${info.buildingCount}/${this.castle.buildingSlots}`);
+
+        // Update dispatch army button state
+        const hasGarrison = this.castle.hasGarrison();
+        if (hasGarrison) {
+            this.dispatchArmyBtn.setFillStyle(0x3498db).setStrokeStyle(2, 0x2980b9);
+            this.dispatchArmyBtnText.setFill('#ffffff');
+        } else {
+            this.dispatchArmyBtn.setFillStyle(0x7f8c8d).setStrokeStyle(2, 0x95a5a6);
+            this.dispatchArmyBtnText.setFill('#bdc3c7');
+        }
     }
 
     updateResourceDisplay() {
@@ -291,16 +436,16 @@ export class CastleOverlay {
         }
 
         // Update garrison info
-        const totalPower = garrison.getTotalPower ? garrison.getTotalPower() : 0;
-        const unitCount = garrison.getUnitCount ? garrison.getUnitCount() : 0;
+        const totalPower = garrison.getCurrentPower ? garrison.getCurrentPower() : 0;
+        const unitCount = garrison.getTotalUnitCount ? garrison.getTotalUnitCount() : 0;
         this.garrisonInfoText.setText(`${unitCount} units, ${totalPower} total power`);
 
         // Clear existing unit displays
         this.garrisonUnitsContainer.removeAll(true);
 
         // Display unit composition (if available)
-        if (garrison.getUnitComposition) {
-            const composition = garrison.getUnitComposition();
+        if (garrison.getComposition) {
+            const composition = garrison.getComposition();
             let xOffset = 0;
             
             Object.keys(composition).forEach(unitType => {
@@ -357,6 +502,12 @@ export class CastleOverlay {
     }
 
     destroy() {
+        // Clean up confirmation dialog if open
+        if (this.confirmationContainer) {
+            this.confirmationContainer.destroy();
+            this.confirmationContainer = null;
+        }
+
         if (this.buildingPanel) {
             this.buildingPanel.destroy();
         }

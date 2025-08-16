@@ -23,8 +23,8 @@ export class PauseOverlay extends Phaser.GameObjects.Container {
      * Create all overlay UI elements
      */
     createOverlayElements() {
-        const screenWidth = this.scene.scale.width;
-        const screenHeight = this.scene.scale.height;
+        const screenWidth = this.scene.cameras.main.width || 1024;
+        const screenHeight = this.scene.cameras.main.height || 768;
 
         // Semi-transparent background
         this.background = this.scene.add.rectangle(

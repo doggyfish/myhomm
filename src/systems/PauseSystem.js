@@ -97,9 +97,11 @@ export class PauseSystem extends Phaser.Events.EventEmitter {
      */
     toggle(reason = 'user') {
         if (this.pauseState.isPaused) {
-            return this.unpause();
+            this.unpause();
+            return false; // Now unpaused
         } else {
-            return this.pause(reason);
+            this.pause(reason);
+            return true; // Now paused
         }
     }
 
