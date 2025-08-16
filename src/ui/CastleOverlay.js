@@ -360,62 +360,77 @@ export class CastleOverlay {
         const screenCenterX = this.scene.cameras.main.width / 2;
         const screenCenterY = this.scene.cameras.main.height / 2;
 
-        // Create confirmation dialog
-        this.confirmationContainer = this.scene.add.container(screenCenterX, screenCenterY).setDepth(200).setScrollFactor(0);
+        // Store dialog elements for cleanup
+        this.confirmationElements = [];
 
         // Background
-        const confirmBg = this.scene.add.rectangle(0, 0, 300, 200, 0x2c3e50, 0.95)
-            .setStrokeStyle(2, 0x34495e);
+        const confirmBg = this.scene.add.rectangle(screenCenterX, screenCenterY, 300, 200, 0x2c3e50, 0.95)
+            .setStrokeStyle(2, 0x34495e)
+            .setScrollFactor(0)
+            .setDepth(300)
+            .setInteractive(); // Make background interactive to prevent clicks going through
 
         // Title
-        const titleText = this.scene.add.text(0, -70, 'Dispatch Army', {
+        const titleText = this.scene.add.text(screenCenterX, screenCenterY - 70, 'Dispatch Army', {
             font: '16px Arial',
             fill: '#ffffff',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(301);
 
         // Garrison info
         const unitCount = garrison.getTotalUnitCount ? garrison.getTotalUnitCount() : 0;
         const totalPower = garrison.getCurrentPower ? garrison.getCurrentPower() : 0;
         
-        const infoText = this.scene.add.text(0, -30, 
+        const infoText = this.scene.add.text(screenCenterX, screenCenterY - 30, 
             `Units: ${unitCount}\nTotal Power: ${totalPower}`, {
             font: '12px Arial',
             fill: '#ecf0f1',
             align: 'center'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(301);
 
         // Confirm button
-        const confirmBtn = this.scene.add.rectangle(-75, 40, 100, 35, 0x27ae60)
+        const confirmBtn = this.scene.add.rectangle(screenCenterX - 75, screenCenterY + 40, 100, 35, 0x27ae60)
             .setStrokeStyle(2, 0x229954)
+            .setScrollFactor(0)
+            .setDepth(301)
             .setInteractive()
-            .on('pointerdown', () => this.confirmDispatch(garrison))
+            .on('pointerdown', () => {
+                this.confirmDispatch(garrison);
+            })
             .on('pointerover', () => confirmBtn.setFillStyle(0x229954))
             .on('pointerout', () => confirmBtn.setFillStyle(0x27ae60));
 
-        const confirmBtnText = this.scene.add.text(-75, 40, 'Dispatch', {
+        const confirmBtnText = this.scene.add.text(screenCenterX - 75, screenCenterY + 40, 'Dispatch', {
             font: '12px Arial',
             fill: '#ffffff'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(302);
 
         // Cancel button
-        const cancelBtn = this.scene.add.rectangle(75, 40, 100, 35, 0xe74c3c)
+        const cancelBtn = this.scene.add.rectangle(screenCenterX + 75, screenCenterY + 40, 100, 35, 0xe74c3c)
             .setStrokeStyle(2, 0xc0392b)
+            .setScrollFactor(0)
+            .setDepth(301)
             .setInteractive()
-            .on('pointerdown', () => this.cancelDispatch())
-            .on('pointerover', () => cancelBtn.setFillStyle(0xc0392b))
+            .on('pointerdown', () => {
+                this.cancelDispatch();
+            })
+            .on('pointerover', () => {
+                cancelBtn.setFillStyle(0xc0392b);
+            })
             .on('pointerout', () => cancelBtn.setFillStyle(0xe74c3c));
 
-        const cancelBtnText = this.scene.add.text(75, 40, 'Cancel', {
+        const cancelBtnText = this.scene.add.text(screenCenterX + 75, screenCenterY + 40, 'Cancel', {
             font: '12px Arial',
             fill: '#ffffff'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(302);
 
-        this.confirmationContainer.add([
+        // Store all elements for cleanup
+        this.confirmationElements = [
             confirmBg, titleText, infoText, 
             confirmBtn, confirmBtnText, 
             cancelBtn, cancelBtnText
-        ]);
+        ];
+
     }
 
     confirmDispatch(garrison) {
@@ -440,6 +455,17 @@ export class CastleOverlay {
     }
 
     cancelDispatch() {
+        // Clean up individual elements
+        if (this.confirmationElements) {
+            this.confirmationElements.forEach(element => {
+                if (element && element.destroy) {
+                    element.destroy();
+                }
+            });
+            this.confirmationElements = null;
+        }
+        
+        // Also clean up container if it exists (fallback)
         if (this.confirmationContainer) {
             this.confirmationContainer.destroy();
             this.confirmationContainer = null;
@@ -594,10 +620,7 @@ export class CastleOverlay {
 
     destroy() {
         // Clean up confirmation dialog if open
-        if (this.confirmationContainer) {
-            this.confirmationContainer.destroy();
-            this.confirmationContainer = null;
-        }
+        this.cancelDispatch();
 
         if (this.buildingPanel) {
             this.buildingPanel.destroy();
