@@ -14,6 +14,7 @@ export class BuildingPanel {
         this.container = scene.add.container(x, y);
         this.container.setDepth(200);
         this.container.setVisible(false);
+        this.container.setScrollFactor(0);
         
         this.selectedBuilding = null;
         this.createPanel();
@@ -63,6 +64,12 @@ export class BuildingPanel {
         this.container.setVisible(true);
         this.isVisible = true;
         this.updateDisplay();
+    }
+
+    updatePosition(x, y) {
+        this.x = x;
+        this.y = y;
+        this.container.setPosition(x, y);
     }
 
     hide() {

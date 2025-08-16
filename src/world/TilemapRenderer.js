@@ -372,6 +372,12 @@ export class TilemapRenderer {
         };
     }
 
+    centerCameraOnTile(tileX, tileY) {
+        const camera = this.scene.cameras.main;
+        const worldCoords = this.tileToWorldCoords(tileX, tileY);
+        camera.centerOn(worldCoords.x, worldCoords.y);
+    }
+
     destroy() {
         if (this.terrainContainer) {
             this.terrainContainer.destroy(true);

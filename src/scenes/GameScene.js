@@ -81,7 +81,8 @@ export default class GameScene extends Phaser.Scene {
             'Click tile - Inspect tile\n' +
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
-            'SPACE/P/ESC - Pause/Unpause\n' +
+            'SPACE - Center on most powerful castle\n' +
+            'P/ESC - Pause/Unpause\n' +
             'Shift+ESC - Back to menu',
             {
                 font: '12px Arial',
@@ -122,10 +123,12 @@ export default class GameScene extends Phaser.Scene {
 
         this.uiContainer.add([backButton, backText]);
 
-        // Pause controls - ESC and SPACE bar
+        // Pause controls - ESC and P key
         this.input.keyboard.on('keydown-ESC', () => this.togglePause());
-        this.input.keyboard.on('keydown-SPACE', () => this.togglePause());
         this.input.keyboard.on('keydown-P', () => this.togglePause());
+        
+        // SPACE key to center on most powerful castle
+        this.input.keyboard.on('keydown-SPACE', () => this.centerOnMostPowerfulCastle());
         
         // Back to menu (Shift+ESC)
         this.input.keyboard.createCombo([Phaser.Input.Keyboard.KeyCodes.SHIFT, Phaser.Input.Keyboard.KeyCodes.ESC], {
@@ -316,6 +319,30 @@ export default class GameScene extends Phaser.Scene {
 
     goBack() {
         this.scene.start('MainMenuScene');
+    }
+
+    centerOnMostPowerfulCastle() {
+        if (!this.castles || this.castles.length === 0) return;
+
+        // Find the most powerful castle (by total defense power)
+        let mostPowerfulCastle = this.castles[0];
+        let maxPower = mostPowerfulCastle.getTotalDefensePower();
+
+        this.castles.forEach(castle => {
+            const power = castle.getTotalDefensePower();
+            if (power > maxPower) {
+                maxPower = power;
+                mostPowerfulCastle = castle;
+            }
+        });
+
+        // Center camera on the most powerful castle
+        const castlePos = mostPowerfulCastle.getPosition();
+        if (this.tilemapRenderer) {
+            this.tilemapRenderer.centerCameraOnTile(castlePos.x, castlePos.y);
+        }
+
+        console.log(`Centered on ${mostPowerfulCastle.name} at (${castlePos.x}, ${castlePos.y}) with ${maxPower} power`);
     }
 
     // Pause System Methods

@@ -39,6 +39,7 @@ export class CastleOverlay {
     }
 
     createCastleInfoPanel() {
+        // Use default positions that will be updated when shown
         const panelX = 200;
         const panelY = 100;
         const panelWidth = 350;
@@ -47,43 +48,45 @@ export class CastleOverlay {
         // Background
         this.infoPanelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x2c3e50, 0.9)
             .setStrokeStyle(2, 0x34495e)
-            .setOrigin(0, 0);
+            .setOrigin(0, 0)
+            .setScrollFactor(0); // Keep fixed to camera
 
         // Title
         this.castleNameText = this.scene.add.text(panelX + 10, panelY + 10, '', {
             font: '18px Arial',
             fill: '#ffffff',
             fontStyle: 'bold'
-        });
+        }).setScrollFactor(0);
 
         // Owner info
         this.ownerText = this.scene.add.text(panelX + 10, panelY + 35, '', {
             font: '14px Arial',
             fill: '#bdc3c7'
-        });
+        }).setScrollFactor(0);
 
         // Position info
         this.positionText = this.scene.add.text(panelX + 10, panelY + 55, '', {
             font: '12px Arial',
             fill: '#95a5a6'
-        });
+        }).setScrollFactor(0);
 
         // Defense info
         this.defenseText = this.scene.add.text(panelX + 10, panelY + 75, '', {
             font: '12px Arial',
             fill: '#e74c3c'
-        });
+        }).setScrollFactor(0);
 
         // Buildings info
         this.buildingCountText = this.scene.add.text(panelX + 10, panelY + 95, '', {
             font: '12px Arial',
             fill: '#3498db'
-        });
+        }).setScrollFactor(0);
 
         // Manage Buildings button
         this.manageBuildingsBtn = this.scene.add.rectangle(panelX + 10, panelY + 130, 120, 35, 0x27ae60)
             .setStrokeStyle(2, 0x229954)
             .setOrigin(0, 0)
+            .setScrollFactor(0)
             .setInteractive()
             .on('pointerdown', () => this.openBuildingPanel())
             .on('pointerover', () => this.manageBuildingsBtn.setFillStyle(0x229954))
@@ -92,12 +95,13 @@ export class CastleOverlay {
         this.manageBuildingsBtnText = this.scene.add.text(panelX + 70, panelY + 147, 'Manage Buildings', {
             font: '12px Arial',
             fill: '#ffffff'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0);
 
         // Dispatch Army button
         this.dispatchArmyBtn = this.scene.add.rectangle(panelX + 150, panelY + 130, 120, 35, 0x3498db)
             .setStrokeStyle(2, 0x2980b9)
             .setOrigin(0, 0)
+            .setScrollFactor(0)
             .setInteractive()
             .on('pointerdown', () => this.dispatchArmy())
             .on('pointerover', () => this.dispatchArmyBtn.setFillStyle(0x2980b9))
@@ -106,11 +110,12 @@ export class CastleOverlay {
         this.dispatchArmyBtnText = this.scene.add.text(panelX + 210, panelY + 147, 'Dispatch Army', {
             font: '12px Arial',
             fill: '#ffffff'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0);
 
         // Close button
         this.closeBtn = this.scene.add.rectangle(panelX + panelWidth - 30, panelY + 10, 25, 25, 0xe74c3c)
             .setStrokeStyle(2, 0xc0392b)
+            .setScrollFactor(0)
             .setInteractive()
             .on('pointerdown', () => this.hide())
             .on('pointerover', () => this.closeBtn.setFillStyle(0xc0392b))
@@ -120,7 +125,7 @@ export class CastleOverlay {
             font: '14px Arial',
             fill: '#ffffff',
             fontStyle: 'bold'
-        }).setOrigin(0.5);
+        }).setOrigin(0.5).setScrollFactor(0);
 
         // Add all to main container
         this.mainContainer.add([
@@ -148,17 +153,19 @@ export class CastleOverlay {
         // Background
         this.resourcePanelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x34495e, 0.9)
             .setStrokeStyle(2, 0x7f8c8d)
-            .setOrigin(0, 0);
+            .setOrigin(0, 0)
+            .setScrollFactor(0);
 
         // Title
         this.resourceTitleText = this.scene.add.text(panelX + 10, panelY + 10, 'Resource Generation', {
             font: '16px Arial',
             fill: '#ffffff',
             fontStyle: 'bold'
-        });
+        }).setScrollFactor(0);
 
         // Resource rates (will be populated dynamically)
-        this.resourceRatesContainer = this.scene.add.container(panelX + 10, panelY + 40);
+        this.resourceRatesContainer = this.scene.add.container(panelX + 10, panelY + 40)
+            .setScrollFactor(0);
 
         this.mainContainer.add([
             this.resourcePanelBg,
@@ -176,23 +183,25 @@ export class CastleOverlay {
         // Background
         this.garrisonPanelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x8e44ad, 0.9)
             .setStrokeStyle(2, 0x9b59b6)
-            .setOrigin(0, 0);
+            .setOrigin(0, 0)
+            .setScrollFactor(0);
 
         // Title
         this.garrisonTitleText = this.scene.add.text(panelX + 10, panelY + 10, 'Garrison Army', {
             font: '16px Arial',
             fill: '#ffffff',
             fontStyle: 'bold'
-        });
+        }).setScrollFactor(0);
 
         // Garrison info
         this.garrisonInfoText = this.scene.add.text(panelX + 10, panelY + 35, '', {
             font: '12px Arial',
             fill: '#ecf0f1'
-        });
+        }).setScrollFactor(0);
 
         // Garrison units container
-        this.garrisonUnitsContainer = this.scene.add.container(panelX + 10, panelY + 60);
+        this.garrisonUnitsContainer = this.scene.add.container(panelX + 10, panelY + 60)
+            .setScrollFactor(0);
 
         this.mainContainer.add([
             this.garrisonPanelBg,
@@ -212,6 +221,9 @@ export class CastleOverlay {
             castleSprite.setTint(0x00ff00);
         }
         
+        // Position UI near the castle
+        this.positionUINearCastle(castle, castleSprite);
+        
         this.mainContainer.setVisible(true);
         this.updateDisplay();
     }
@@ -228,6 +240,85 @@ export class CastleOverlay {
         }
         
         this.castle = null;
+    }
+
+    positionUINearCastle(castle, castleSprite) {
+        const camera = this.scene.cameras.main;
+        const castlePos = castle.getPosition();
+        
+        // Convert castle tile position to world coordinates
+        const tileSize = 32; // Should match TilemapRenderer.tileSize
+        const worldX = castlePos.x * tileSize + tileSize / 2;
+        const worldY = castlePos.y * tileSize + tileSize / 2;
+        
+        // Convert world coordinates to screen coordinates
+        const screenX = (worldX - camera.scrollX) * camera.zoom;
+        const screenY = (worldY - camera.scrollY) * camera.zoom;
+        
+        // Position UI to the right of the castle, but keep it on screen
+        let uiX = screenX + 100; // Offset to the right
+        let uiY = screenY - 200; // Offset upward
+        
+        // Keep UI within screen bounds
+        const screenWidth = camera.width;
+        const screenHeight = camera.height;
+        const panelWidth = 350;
+        const panelHeight = 600; // Total height of all panels
+        
+        // Adjust X position if too far right
+        if (uiX + panelWidth > screenWidth - 20) {
+            uiX = screenX - panelWidth - 100; // Position to the left instead
+        }
+        
+        // Adjust X position if too far left
+        if (uiX < 20) {
+            uiX = 20;
+        }
+        
+        // Adjust Y position if too far down
+        if (uiY + panelHeight > screenHeight - 20) {
+            uiY = screenHeight - panelHeight - 20;
+        }
+        
+        // Adjust Y position if too far up
+        if (uiY < 20) {
+            uiY = 20;
+        }
+        
+        // Update all panel positions
+        this.updatePanelPositions(uiX, uiY);
+    }
+
+    updatePanelPositions(baseX, baseY) {
+        // Update castle info panel
+        this.infoPanelBg.setPosition(baseX, baseY);
+        this.castleNameText.setPosition(baseX + 10, baseY + 10);
+        this.ownerText.setPosition(baseX + 10, baseY + 35);
+        this.positionText.setPosition(baseX + 10, baseY + 55);
+        this.defenseText.setPosition(baseX + 10, baseY + 75);
+        this.buildingCountText.setPosition(baseX + 10, baseY + 95);
+        this.manageBuildingsBtn.setPosition(baseX + 10, baseY + 130);
+        this.manageBuildingsBtnText.setPosition(baseX + 70, baseY + 147);
+        this.dispatchArmyBtn.setPosition(baseX + 150, baseY + 130);
+        this.dispatchArmyBtnText.setPosition(baseX + 210, baseY + 147);
+        this.closeBtn.setPosition(baseX + 320, baseY + 10);
+        this.closeBtnText.setPosition(baseX + 333, baseY + 22);
+        
+        // Update resource panel
+        this.resourcePanelBg.setPosition(baseX, baseY + 220);
+        this.resourceTitleText.setPosition(baseX + 10, baseY + 230);
+        this.resourceRatesContainer.setPosition(baseX + 10, baseY + 260);
+        
+        // Update garrison panel  
+        this.garrisonPanelBg.setPosition(baseX, baseY + 360);
+        this.garrisonTitleText.setPosition(baseX + 10, baseY + 370);
+        this.garrisonInfoText.setPosition(baseX + 10, baseY + 395);
+        this.garrisonUnitsContainer.setPosition(baseX + 10, baseY + 420);
+        
+        // Update building panel position if it exists
+        if (this.buildingPanel) {
+            this.buildingPanel.updatePosition(baseX + 380, baseY);
+        }
     }
 
     openBuildingPanel() {
@@ -270,7 +361,7 @@ export class CastleOverlay {
         const screenCenterY = this.scene.cameras.main.height / 2;
 
         // Create confirmation dialog
-        this.confirmationContainer = this.scene.add.container(screenCenterX, screenCenterY).setDepth(200);
+        this.confirmationContainer = this.scene.add.container(screenCenterX, screenCenterY).setDepth(200).setScrollFactor(0);
 
         // Background
         const confirmBg = this.scene.add.rectangle(0, 0, 300, 200, 0x2c3e50, 0.95)
