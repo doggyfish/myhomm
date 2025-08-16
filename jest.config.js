@@ -7,5 +7,6 @@ export default {
   testMatch: [
     '**/__tests__/**/*.(js|jsx|ts|tsx)',
     '**/*.(test|spec).(js|jsx|ts|tsx)'
-  ]
+  ],
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js']
 };

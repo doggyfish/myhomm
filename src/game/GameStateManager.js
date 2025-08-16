@@ -1,7 +1,9 @@
 import { CONFIG } from '../config/ConfigurationManager.js';
+import { VICTORY_EVENTS } from '../events/VictoryEvents.js';
 
-export class GameStateManager {
+export class GameStateManager extends Phaser.Events.EventEmitter {
     constructor(config = {}) {
+        super();
         this.config = config;
         this.players = [];
         this.entities = new Map();
@@ -11,6 +13,7 @@ export class GameStateManager {
         this.winner = null;
         this.pausedSystems = null;
         this.gameStartTime = Date.now();
+        this.battleCount = 0;
         
         // Enhanced pause system integration
         this.pauseSystem = null;
@@ -200,6 +203,11 @@ export class GameStateManager {
     
     addEntity(entity) {
         this.entities.set(entity.id, entity);
+        
+        // Set gameState reference for entities that need event emission
+        if (entity.setGameState && typeof entity.setGameState === 'function') {
+            entity.setGameState(this);
+        }
     }
     
     removeEntity(entityId) {
@@ -252,6 +260,9 @@ export class GameStateManager {
      * @param {CombatResult} combatResult - Result of combat resolution
      */
     handleCombatResult(combatResult) {
+        // Increment battle counter for game statistics
+        this.battleCount++;
+        
         // Apply losses to attacker
         if (combatResult.attackerLosses > 0) {
             const attacker = combatResult.winner === combatResult.attacker ? 
@@ -270,8 +281,12 @@ export class GameStateManager {
             if (defender) {
                 if (defender.type === 'army' && defender.applyCombatLosses) {
                     defender.applyCombatLosses(combatResult.defenderLosses);
-                } else if (defender.type === 'castle' && defender.applySiegeDamage) {
-                    defender.applySiegeDamage(combatResult.defenderLosses);
+                } else if (defender.type === 'castle') {
+                    if (defender.handleCombatDefeat) {
+                        defender.handleCombatDefeat(combatResult.attacker, combatResult.defenderLosses);
+                    } else if (defender.applySiegeDamage) {
+                        defender.applySiegeDamage(combatResult.defenderLosses);
+                    }
                 }
             }
         }

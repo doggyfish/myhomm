@@ -3,6 +3,7 @@ import { PositionComponent } from './components/PositionComponent.js';
 import { ResourceGeneratorComponent } from './components/ResourceGeneratorComponent.js';
 import { DefenseComponent } from './components/DefenseComponent.js';
 import { CONFIG } from '../config/ConfigurationManager.js';
+import { VictoryEventFactory, VICTORY_EVENTS } from '../events/VictoryEvents.js';
 
 export class Castle extends Entity {
     constructor(id, x, y, owner) {
@@ -14,6 +15,8 @@ export class Castle extends Entity {
         this.garrisonArmy = null; // Will hold an Army entity
         this.name = `Castle ${id}`;
         this.isCapital = false;
+        this.isDestroyed = false;
+        this.gameState = null; // Set by GameStateManager when added
         
         // Add core components
         this.addComponent('position', new PositionComponent(x, y));
@@ -282,6 +285,69 @@ export class Castle extends Entity {
             resourceRates,
             defensePower: defenseDetails.totalCastlePower
         };
+    }
+
+    /**
+     * Destroy the castle and emit destruction event
+     * @param {Entity} destroyer - The entity that destroyed this castle (army, player, etc.)
+     */
+    destroy(destroyer = null) {
+        if (this.isDestroyed) return false;
+        
+        this.isDestroyed = true;
+        
+        // Emit castle destruction event for victory system
+        if (this.gameState) {
+            const eventData = VictoryEventFactory.createCastleDestroyed(this, destroyer);
+            this.gameState.emit(VICTORY_EVENTS.CASTLE_DESTROYED, eventData);
+        }
+        
+        // Clean up garrison army
+        if (this.garrisonArmy) {
+            this.garrisonArmy = null;
+        }
+        
+        // Disable resource generation
+        const resourceGenerator = this.getComponent('resourceGenerator');
+        if (resourceGenerator) {
+            resourceGenerator.disable();
+        }
+        
+        console.log(`Castle ${this.id} destroyed by ${destroyer?.id || 'unknown'}`);
+        return true;
+    }
+
+    /**
+     * Check if castle should be destroyed based on defense power
+     * @returns {boolean} True if castle should be destroyed
+     */
+    shouldBeDestroyed() {
+        const defenseComponent = this.getComponent('defense');
+        if (!defenseComponent) return true;
+        
+        return defenseComponent.getEffectiveDefensePower() <= 0 && 
+               (!this.garrisonArmy || this.garrisonArmy.getTotalPower() <= 0);
+    }
+
+    /**
+     * Handle combat defeat - check if castle should be destroyed
+     * @param {Entity} attacker - The attacking entity
+     * @param {number} damageDealt - Total damage dealt to castle
+     */
+    handleCombatDefeat(attacker, damageDealt) {
+        this.applySiegeDamage(damageDealt);
+        
+        if (this.shouldBeDestroyed()) {
+            this.destroy(attacker);
+        }
+    }
+
+    /**
+     * Set game state reference for event emission
+     * @param {GameStateManager} gameState - Reference to game state manager
+     */
+    setGameState(gameState) {
+        this.gameState = gameState;
     }
 
     serialize() {

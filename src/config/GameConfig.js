@@ -119,6 +119,42 @@ export const GAME_CONFIG = {
         }
     },
     
+    // Victory system configuration
+    victory: {
+        // Victory detection performance
+        checkIntervalMs: 100, // How often to check victory conditions
+        detectionTimeoutMs: 100, // Maximum time for victory detection
+        
+        // Castle elimination victory (always enabled)
+        castleEliminationEnabled: true,
+        
+        // Economic victory conditions
+        economicVictoryEnabled: false, // Enable economic victory
+        economicTarget: {
+            gold: 10000,
+            rareResourceAmount: 1000
+        },
+        
+        // Time limit victory
+        timeLimitEnabled: false, // Enable time limit victory
+        timeLimit: 3600000, // 1 hour in milliseconds
+        
+        // End game configuration
+        endGameReviewEnabled: true, // Allow pause for strategic review
+        celebrationDuration: 3000, // Victory celebration effects duration
+        defeatAnalysisEnabled: true, // Show strategic analysis on defeat
+        
+        // UI configuration
+        victoryScreenAnimationDuration: 500,
+        defeatScreenAnimationDuration: 600,
+        notificationDuration: 3000, // Player elimination notifications
+        
+        // Sound configuration
+        victoryFanfareVolume: 0.7,
+        defeatThemeVolume: 0.6,
+        eliminationSoundVolume: 0.5
+    },
+    
     // Faction configuration
     factions: {
         human: {
