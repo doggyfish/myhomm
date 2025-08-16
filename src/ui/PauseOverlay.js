@@ -23,25 +23,16 @@ export class PauseOverlay extends Phaser.GameObjects.Container {
      * Create all overlay UI elements
      */
     createOverlayElements() {
-        const screenWidth = this.scene.cameras.main.width || 1024;
-        const screenHeight = this.scene.cameras.main.height || 768;
-
+        // Create elements with default positions (will be updated when shown)
         // Semi-transparent background
         this.background = this.scene.add.rectangle(
-            screenWidth / 2, 
-            screenHeight / 2,
-            screenWidth, 
-            screenHeight, 
-            0x000000, 
-            0.6
-        );
+            0, 0, 1024, 768, 0x000000, 0.6
+        ).setScrollFactor(0);
         this.add(this.background);
 
         // Main pause text
         this.pauseText = this.scene.add.text(
-            screenWidth / 2, 
-            screenHeight / 2 - 60,
-            'GAME PAUSED',
+            0, -60, 'GAME PAUSED',
             {
                 fontSize: '48px',
                 fill: '#FFD700',
@@ -49,52 +40,47 @@ export class PauseOverlay extends Phaser.GameObjects.Container {
                 stroke: '#000000',
                 strokeThickness: 3
             }
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setScrollFactor(0);
         this.add(this.pauseText);
 
         // Instruction text
         this.instructionText = this.scene.add.text(
-            screenWidth / 2,
-            screenHeight / 2,
-            'Press ESC to resume',
+            0, 0, 'Press ESC or P to resume',
             {
                 fontSize: '24px',
                 fill: '#FFFFFF',
                 fontFamily: 'Arial'
             }
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setScrollFactor(0);
         this.add(this.instructionText);
 
         // Reason text (why game was paused)
         this.reasonText = this.scene.add.text(
-            screenWidth / 2,
-            screenHeight / 2 + 40,
-            '',
+            0, 40, '',
             {
                 fontSize: '18px',
                 fill: '#CCCCCC',
                 fontFamily: 'Arial',
                 alpha: 0.8
             }
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setScrollFactor(0);
         this.add(this.reasonText);
 
         // Stats text (pause duration, etc.)
         this.statsText = this.scene.add.text(
-            screenWidth / 2,
-            screenHeight / 2 + 80,
-            '',
+            0, 80, '',
             {
                 fontSize: '16px',
                 fill: '#999999',
                 fontFamily: 'Arial Mono',
                 alpha: 0.7
             }
-        ).setOrigin(0.5);
+        ).setOrigin(0.5).setScrollFactor(0);
         this.add(this.statsText);
 
-        // Set container depth
+        // Set container properties
         this.setDepth(1000);
+        this.setScrollFactor(0);
     }
 
     /**
@@ -116,10 +102,28 @@ export class PauseOverlay extends Phaser.GameObjects.Container {
     }
 
     /**
+     * Center the pause overlay on the current screen view
+     */
+    centerOnScreen() {
+        const camera = this.scene.cameras.main;
+        const screenCenterX = camera.width / 2;
+        const screenCenterY = camera.height / 2;
+        
+        // Position the container at screen center
+        this.setPosition(screenCenterX, screenCenterY);
+        
+        // Update background size to cover the entire screen
+        this.background.setSize(camera.width, camera.height);
+    }
+
+    /**
      * Show the pause overlay with fade-in effect
      */
     show(reason = 'user', pauseData = null) {
         if (this.isVisible) return;
+
+        // Center on current screen view
+        this.centerOnScreen();
 
         this.isVisible = true;
         this.setVisible(true);
