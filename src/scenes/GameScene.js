@@ -90,8 +90,9 @@ export default class GameScene extends Phaser.Scene {
             'Mouse Drag - Pan camera\n' +
             'Mouse Wheel - Zoom in/out\n' +
             'Single-click castle/army - Select army\n' +
+            'Click selected army - Deselect army\n' +
             'Double-click castle/army - Open castle\n' +
-            'Click tile (army selected) - Move army\n' +
+            'Click anything (army selected) - Move army\n' +
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
             'SPACE - Center on most powerful castle\n' +
@@ -363,6 +364,15 @@ export default class GameScene extends Phaser.Scene {
         
         if (!castle) return;
 
+        // If an army is selected, move it to this castle instead of doing selection logic
+        if (this.selectedArmy) {
+            console.log('Army selected, moving to castle instead of castle interaction');
+            const castlePos = castle.getPosition();
+            this.moveSelectedArmy(castlePos.x, castlePos.y);
+            return;
+        }
+
+        // No army selected, proceed with normal castle click logic
         // Check for dispatched armies at this castle position
         const dispatchedArmies = castle.getDispatchedArmies();
         const armyAtPosition = dispatchedArmies.find(army => {
@@ -555,7 +565,13 @@ export default class GameScene extends Phaser.Scene {
             // Stop event from propagating to tile handling
             event.stopPropagation();
             console.log(`Army sprite clicked: ${army.id}`);
-            this.selectArmy(army);
+            
+            // If this army is already selected, deselect it
+            if (this.selectedArmy === army) {
+                this.deselectArmy();
+            } else {
+                this.selectArmy(army);
+            }
         });
         
         armySprite.on('pointerover', () => {
@@ -601,6 +617,88 @@ export default class GameScene extends Phaser.Scene {
         
         console.log(`Moving army ${this.selectedArmy.id} from current position to (${targetX}, ${targetY})`);
         
+        // Check if target position has a castle
+        const targetCastle = this.castles.find(castle => {
+            const pos = castle.getPosition();
+            return pos.x === targetX && pos.y === targetY;
+        });
+
+        if (targetCastle) {
+            // Army is moving into a castle
+            const success = this.moveArmyIntoCastle(this.selectedArmy, targetCastle);
+            if (success) {
+                this.showTileInfo({ x: targetX, y: targetY }, `Army entered ${targetCastle.name}`);
+            }
+            return success;
+        } else {
+            // Normal movement to empty tile
+            const success = this.moveArmyToPosition(targetX, targetY);
+            if (success) {
+                this.showTileInfo({ x: targetX, y: targetY }, `Army moved to (${targetX}, ${targetY})`);
+            }
+            return success;
+        }
+    }
+
+    moveArmyIntoCastle(army, castle) {
+        console.log(`Army ${army.id} entering castle ${castle.name}`);
+
+        // Check if castle belongs to same owner
+        if (army.owner !== castle.owner) {
+            console.log(`Army cannot enter enemy castle`);
+            // TODO: Implement siege/attack mechanics here
+            return false;
+        }
+
+        // Check if castle already has a garrison
+        if (castle.hasGarrison()) {
+            // Merge with existing garrison
+            const existingGarrison = castle.getGarrisonArmy();
+            console.log(`Merging army ${army.id} with existing garrison ${existingGarrison.id}`);
+            
+            if (existingGarrison.mergeArmy(army)) {
+                // Successfully merged - remove the moving army
+                this.removeArmy(army);
+                
+                // Update castle overlay if it's showing this castle
+                if (this.castleOverlay && this.castleOverlay.castle === castle) {
+                    this.castleOverlay.updateDisplay();
+                }
+                
+                console.log(`Army ${army.id} merged into garrison`);
+                return true;
+            } else {
+                console.log(`Failed to merge armies`);
+                return false;
+            }
+        } else {
+            // Castle has no garrison - army becomes the garrison
+            console.log(`Army ${army.id} becoming garrison of ${castle.name}`);
+            
+            // Remove army from dispatched armies list of origin castle
+            if (army.originCastle) {
+                army.originCastle.removeDispatchedArmy(army);
+            }
+
+            // Convert army to garrison
+            army.isGarrison = true;
+            army.location = castle;
+            castle.setGarrisonArmy(army);
+
+            // Remove army sprite and remove from scene armies
+            this.removeArmy(army);
+            
+            // Update castle overlay if it's showing this castle
+            if (this.castleOverlay && this.castleOverlay.castle === castle) {
+                this.castleOverlay.updateDisplay();
+            }
+            
+            console.log(`Army ${army.id} is now garrison of ${castle.name}`);
+            return true;
+        }
+    }
+
+    moveArmyToPosition(targetX, targetY) {
         // Move army to target position
         this.selectedArmy.setPosition(targetX, targetY);
         
@@ -619,6 +717,27 @@ export default class GameScene extends Phaser.Scene {
         
         console.log(`Army ${this.selectedArmy.id} moved to (${targetX}, ${targetY})`);
         return true;
+    }
+
+    removeArmy(army) {
+        // Remove from armies array
+        const index = this.armies.indexOf(army);
+        if (index >= 0) {
+            this.armies.splice(index, 1);
+        }
+
+        // Remove sprite
+        if (army.sprite) {
+            army.sprite.destroy();
+            army.sprite = null;
+        }
+
+        // Deselect if this was the selected army
+        if (this.selectedArmy === army) {
+            this.selectedArmy = null;
+        }
+
+        console.log(`Army ${army.id} removed from scene`);
     }
 
     deselectArmy() {
