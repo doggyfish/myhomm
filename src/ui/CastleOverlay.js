@@ -36,6 +36,9 @@ export class CastleOverlay {
         
         // Create garrison display
         this.createGarrisonDisplay();
+        
+        // Create dispatched armies display
+        this.createDispatchedArmiesDisplay();
     }
 
     createCastleInfoPanel() {
@@ -211,6 +214,60 @@ export class CastleOverlay {
         ]);
     }
 
+    createDispatchedArmiesDisplay() {
+        const panelX = 200;
+        const panelY = 600;
+        const panelWidth = 350;
+        const panelHeight = 140;
+
+        // Background
+        this.dispatchedPanelBg = this.scene.add.rectangle(panelX, panelY, panelWidth, panelHeight, 0x16537e, 0.9)
+            .setStrokeStyle(2, 0x2980b9)
+            .setOrigin(0, 0)
+            .setScrollFactor(0);
+
+        // Title
+        this.dispatchedTitleText = this.scene.add.text(panelX + 10, panelY + 10, 'Dispatched Armies', {
+            font: '16px Arial',
+            fill: '#ffffff',
+            fontStyle: 'bold'
+        }).setScrollFactor(0);
+
+        // Dispatched armies info
+        this.dispatchedInfoText = this.scene.add.text(panelX + 10, panelY + 35, '', {
+            font: '12px Arial',
+            fill: '#ecf0f1'
+        }).setScrollFactor(0);
+
+        // Dispatched armies container
+        this.dispatchedArmiesContainer = this.scene.add.container(panelX + 10, panelY + 60)
+            .setScrollFactor(0);
+
+        // Select army button
+        this.selectArmyBtn = this.scene.add.rectangle(panelX + 10, panelY + 100, 120, 30, 0x8e44ad)
+            .setStrokeStyle(2, 0x9b59b6)
+            .setOrigin(0, 0)
+            .setScrollFactor(0)
+            .setInteractive()
+            .on('pointerdown', () => this.selectDispatchedArmy())
+            .on('pointerover', () => this.selectArmyBtn.setFillStyle(0x9b59b6))
+            .on('pointerout', () => this.selectArmyBtn.setFillStyle(0x8e44ad));
+
+        this.selectArmyBtnText = this.scene.add.text(panelX + 70, panelY + 115, 'Select Army', {
+            font: '12px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5).setScrollFactor(0);
+
+        this.mainContainer.add([
+            this.dispatchedPanelBg,
+            this.dispatchedTitleText,
+            this.dispatchedInfoText,
+            this.dispatchedArmiesContainer,
+            this.selectArmyBtn,
+            this.selectArmyBtnText
+        ]);
+    }
+
     show(castle, castleSprite) {
         this.castle = castle;
         this.selectedCastleSprite = castleSprite;
@@ -263,7 +320,7 @@ export class CastleOverlay {
         const screenWidth = camera.width;
         const screenHeight = camera.height;
         const panelWidth = 350;
-        const panelHeight = 600; // Total height of all panels
+        const panelHeight = 740; // Total height of all panels (increased for dispatched armies)
         
         // Adjust X position if too far right
         if (uiX + panelWidth > screenWidth - 20) {
@@ -314,6 +371,14 @@ export class CastleOverlay {
         this.garrisonTitleText.setPosition(baseX + 10, baseY + 370);
         this.garrisonInfoText.setPosition(baseX + 10, baseY + 395);
         this.garrisonUnitsContainer.setPosition(baseX + 10, baseY + 420);
+        
+        // Update dispatched armies panel
+        this.dispatchedPanelBg.setPosition(baseX, baseY + 500);
+        this.dispatchedTitleText.setPosition(baseX + 10, baseY + 510);
+        this.dispatchedInfoText.setPosition(baseX + 10, baseY + 535);
+        this.dispatchedArmiesContainer.setPosition(baseX + 10, baseY + 560);
+        this.selectArmyBtn.setPosition(baseX + 10, baseY + 600);
+        this.selectArmyBtnText.setPosition(baseX + 70, baseY + 615);
         
         // Update building panel position if it exists
         if (this.buildingPanel) {
@@ -445,6 +510,14 @@ export class CastleOverlay {
         garrison.isGarrison = false;
         garrison.location = null;
 
+        // Add to castle's dispatched armies
+        this.castle.addDispatchedArmy(garrison);
+
+        // Register army with scene for rendering and interaction
+        if (this.scene.registerArmy) {
+            this.scene.registerArmy(garrison);
+        }
+
         console.log(`Army dispatched from ${this.castle.name} to position (${castlePos.x + 1}, ${castlePos.y})`);
 
         // Clean up confirmation dialog
@@ -478,6 +551,7 @@ export class CastleOverlay {
         this.updateCastleInfo();
         this.updateResourceDisplay();
         this.updateGarrisonDisplay();
+        this.updateDispatchedArmiesDisplay();
     }
 
     updateCastleInfo() {
@@ -585,6 +659,92 @@ export class CastleOverlay {
                 fill: '#95a5a6'
             });
             this.garrisonUnitsContainer.add(placeholderText);
+        }
+    }
+
+    updateDispatchedArmiesDisplay() {
+        const dispatchedArmies = this.castle.getDispatchedArmies();
+        
+        if (!dispatchedArmies || dispatchedArmies.length === 0) {
+            this.dispatchedInfoText.setText('No dispatched armies');
+            this.dispatchedArmiesContainer.removeAll(true);
+            
+            // Disable select button
+            this.selectArmyBtn.setFillStyle(0x7f8c8d).setStrokeStyle(2, 0x95a5a6);
+            this.selectArmyBtnText.setFill('#bdc3c7');
+            return;
+        }
+
+        // Update info text
+        const totalPower = this.castle.getTotalDispatchedPower();
+        const armyCount = dispatchedArmies.length;
+        this.dispatchedInfoText.setText(`${armyCount} ${armyCount === 1 ? 'army' : 'armies'}, ${totalPower} total power`);
+
+        // Clear existing army displays
+        this.dispatchedArmiesContainer.removeAll(true);
+
+        // Display each dispatched army
+        let yOffset = 0;
+        dispatchedArmies.forEach((army, index) => {
+            if (index < 2) { // Show only first 2 armies to fit in panel
+                const unitCount = army.getTotalUnitCount ? army.getTotalUnitCount() : 0;
+                const power = army.getCurrentPower ? army.getCurrentPower() : 0;
+                const position = army.getPosition ? army.getPosition() : { x: 0, y: 0 };
+                
+                const armyText = this.scene.add.text(0, yOffset, 
+                    `Army ${index + 1}: ${unitCount} units, ${power} power @ (${position.x}, ${position.y})`, {
+                    font: '10px Arial',
+                    fill: '#ecf0f1'
+                });
+                
+                this.dispatchedArmiesContainer.add(armyText);
+                yOffset += 15;
+            }
+        });
+
+        if (dispatchedArmies.length > 2) {
+            const moreText = this.scene.add.text(0, yOffset, 
+                `+${dispatchedArmies.length - 2} more armies`, {
+                font: '10px Arial',
+                fill: '#95a5a6',
+                fontStyle: 'italic'
+            });
+            this.dispatchedArmiesContainer.add(moreText);
+        }
+
+        // Enable select button
+        this.selectArmyBtn.setFillStyle(0x8e44ad).setStrokeStyle(2, 0x9b59b6);
+        this.selectArmyBtnText.setFill('#ffffff');
+    }
+
+    selectDispatchedArmy() {
+        const dispatchedArmies = this.castle.getDispatchedArmies();
+        
+        if (!dispatchedArmies || dispatchedArmies.length === 0) {
+            // Show message when no armies
+            const originalText = this.dispatchedInfoText.text;
+            this.dispatchedInfoText.setText('No armies to select').setFill('#e74c3c');
+            
+            // Reset after 2 seconds
+            this.scene.time.delayedCall(2000, () => {
+                this.dispatchedInfoText.setText(originalText).setFill('#ecf0f1');
+            });
+            return;
+        }
+
+        // Select the first available army (or show selection dialog if multiple)
+        const selectedArmy = dispatchedArmies[0];
+        
+        if (this.scene.selectArmy) {
+            console.log(`Calling scene.selectArmy with army:`, selectedArmy.id);
+            this.scene.selectArmy(selectedArmy);
+            
+            // Close castle overlay
+            this.hide();
+            
+            console.log(`Selected army ${selectedArmy.id} from ${this.castle.name}`);
+        } else {
+            console.error('scene.selectArmy method not found');
         }
     }
 

@@ -27,6 +27,10 @@ export default class GameScene extends Phaser.Scene {
         this.mapGenerator = new TilemapGenerator(mapSize, mapSize, playerCount);
         this.mapData = this.mapGenerator.generate();
 
+        // Initialize army management
+        this.armies = [];
+        this.selectedArmy = null;
+
         // Create castles from map data
         this.createCastles();
 
@@ -51,6 +55,12 @@ export default class GameScene extends Phaser.Scene {
         
         // Add castle selection
         this.enableCastleSelection();
+
+        // Create army sprites container
+        this.createArmySprites();
+
+        // Create test army for debugging movement
+        this.createTestArmy();
     }
 
     createUI() {
@@ -82,6 +92,8 @@ export default class GameScene extends Phaser.Scene {
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
             'SPACE - Center on most powerful castle\n' +
+            'D - Deselect army\n' +
+            'T - Test move selected army (debug)\n' +
             'P/ESC - Pause/Unpause\n' +
             'Shift+ESC - Back to menu',
             {
@@ -145,6 +157,12 @@ export default class GameScene extends Phaser.Scene {
         for (let i = 1; i <= 8; i++) {
             this.input.keyboard.on(`keydown-${i}`, () => this.switchPlayer(i - 1));
         }
+        
+        // Army deselection
+        this.input.keyboard.on('keydown-D', () => this.deselectArmy());
+        
+        // Test army movement with keyboard
+        this.input.keyboard.on('keydown-T', () => this.testArmyMovement());
     }
 
     updateMapInfo() {
@@ -160,12 +178,75 @@ export default class GameScene extends Phaser.Scene {
 
     enableTileInspection() {
         this.input.on('pointerdown', (pointer) => {
-            // Only inspect if not dragging
+            console.log(`Pointer down at screen (${pointer.x}, ${pointer.y}), isDragging: ${this.tilemapRenderer.isDragging}`);
+            
+            // If army is selected, allow movement even if dragging
+            if (this.selectedArmy) {
+                console.log('Army selected, processing click for movement');
+                const tile = this.tilemapRenderer.getTileAtScreenPosition(pointer.x, pointer.y);
+                console.log('Tile detected for movement:', tile);
+                this.handleTileClick(tile, pointer);
+                return;
+            }
+            
+            // Only inspect if not dragging (for normal tile inspection)
             if (!this.tilemapRenderer.isDragging) {
                 const tile = this.tilemapRenderer.getTileAtScreenPosition(pointer.x, pointer.y);
-                this.inspectTile(tile, pointer);
+                console.log('Tile detected for inspection:', tile);
+                this.handleTileClick(tile, pointer);
             }
         });
+    }
+
+    handleTileClick(tile, pointer) {
+        // Try alternative tile calculation if primary method fails
+        if (!tile) {
+            console.log('No tile detected, trying alternative calculation');
+            tile = this.screenToTileCoordinates(pointer.x, pointer.y);
+            console.log('Alternative tile calculation:', tile);
+        }
+
+        if (!tile) {
+            console.log('No tile detected at click position');
+            return;
+        }
+
+        console.log(`Tile clicked: (${tile.x}, ${tile.y}), Selected army:`, this.selectedArmy?.id);
+
+        // If army is selected, try to move it
+        if (this.selectedArmy) {
+            console.log(`Attempting to move army ${this.selectedArmy.id} to (${tile.x}, ${tile.y})`);
+            const moved = this.moveSelectedArmy(tile.x, tile.y);
+            if (moved) {
+                // Show movement feedback
+                this.showTileInfo(tile, `Army moved to (${tile.x}, ${tile.y})`);
+                return;
+            }
+        }
+
+        // Otherwise, inspect the tile
+        this.inspectTile(tile, pointer);
+    }
+
+    screenToTileCoordinates(screenX, screenY) {
+        const camera = this.cameras.main;
+        
+        // Convert screen coordinates to world coordinates
+        const worldX = screenX / camera.zoom + camera.scrollX;
+        const worldY = screenY / camera.zoom + camera.scrollY;
+        
+        // Convert world coordinates to tile coordinates
+        const tileSize = 32;
+        const tileX = Math.floor(worldX / tileSize);
+        const tileY = Math.floor(worldY / tileSize);
+        
+        // Check bounds
+        const mapSize = this.mapData ? this.mapData.width : 64;
+        if (tileX >= 0 && tileY >= 0 && tileX < mapSize && tileY < mapSize) {
+            return { x: tileX, y: tileY, terrain: 'unknown' };
+        }
+        
+        return null;
     }
 
     inspectTile(tile, pointer) {
@@ -176,16 +257,20 @@ export default class GameScene extends Phaser.Scene {
                 `Road: ${tile.hasRoad ? 'Yes' : 'No'}\n` +
                 `Castle: ${tile.hasCastle ? 'Yes' : 'No'}`;
             
-            this.tileInfoText.setText(tileInfo);
-            this.tileInfoBg.setVisible(true);
-            this.tileInfoText.setVisible(true);
-            
-            // Hide after 3 seconds
-            this.time.delayedCall(3000, () => {
-                this.tileInfoBg.setVisible(false);
-                this.tileInfoText.setVisible(false);
-            });
+            this.showTileInfo(tile, tileInfo);
         }
+    }
+
+    showTileInfo(tile, text) {
+        this.tileInfoText.setText(text);
+        this.tileInfoBg.setVisible(true);
+        this.tileInfoText.setVisible(true);
+        
+        // Hide after 3 seconds
+        this.time.delayedCall(3000, () => {
+            this.tileInfoBg.setVisible(false);
+            this.tileInfoText.setVisible(false);
+        });
     }
 
     initializePlayers(playerCount) {
@@ -294,6 +379,16 @@ export default class GameScene extends Phaser.Scene {
             });
         }
         
+        // Update armies
+        if (this.armies) {
+            const deltaTime = this.game.loop.delta;
+            this.armies.forEach(army => {
+                if (army.update) {
+                    army.update(deltaTime);
+                }
+            });
+        }
+        
         // Update castle overlay
         if (this.castleOverlay) {
             this.castleOverlay.update(this.game.loop.delta);
@@ -343,6 +438,157 @@ export default class GameScene extends Phaser.Scene {
         }
 
         console.log(`Centered on ${mostPowerfulCastle.name} at (${castlePos.x}, ${castlePos.y}) with ${maxPower} power`);
+    }
+
+    // Army Management Methods
+
+    createArmySprites() {
+        // Create container for army sprites
+        this.armySprites = this.add.group();
+    }
+
+    registerArmy(army) {
+        console.log(`Registering army:`, army.id);
+        if (!this.armies.includes(army)) {
+            this.armies.push(army);
+            this.createArmySprite(army);
+            console.log(`Army ${army.id} registered and sprite created`);
+        } else {
+            console.log(`Army ${army.id} already registered`);
+        }
+    }
+
+    createArmySprite(army) {
+        const position = army.getPosition();
+        const tileSize = 32;
+        
+        console.log(`Creating army sprite for ${army.id} at position:`, position);
+        
+        // Create army sprite
+        const armySprite = this.add.circle(
+            position.x * tileSize + tileSize / 2,
+            position.y * tileSize + tileSize / 2,
+            12, // radius
+            0xff6b6b // red color
+        );
+        
+        armySprite.setStrokeStyle(2, 0x000000);
+        armySprite.setData('army', army);
+        armySprite.setInteractive();
+        armySprite.setDepth(50); // Ensure army sprites are above terrain
+        
+        // Store sprite reference in army
+        army.sprite = armySprite;
+        
+        // Add to army sprites group
+        this.armySprites.add(armySprite);
+        
+        console.log(`Army sprite created at screen position: (${armySprite.x}, ${armySprite.y})`);
+        
+        // Make army clickable
+        armySprite.on('pointerdown', (pointer, localX, localY, event) => {
+            // Stop event from propagating to tile handling
+            event.stopPropagation();
+            console.log(`Army sprite clicked: ${army.id}`);
+            this.selectArmy(army);
+        });
+        
+        armySprite.on('pointerover', () => {
+            if (this.selectedArmy !== army) {
+                armySprite.setFillStyle(0xff9999); // Lighter red on hover
+            }
+        });
+        
+        armySprite.on('pointerout', () => {
+            if (this.selectedArmy !== army) {
+                armySprite.setFillStyle(0xff6b6b); // Original red
+            }
+        });
+    }
+
+    selectArmy(army) {
+        console.log(`selectArmy called with:`, army?.id);
+        
+        // Deselect previous army
+        if (this.selectedArmy && this.selectedArmy.sprite) {
+            this.selectedArmy.sprite.setFillStyle(0xff6b6b);
+            this.selectedArmy.sprite.setStrokeStyle(2, 0x000000);
+        }
+        
+        // Select new army
+        this.selectedArmy = army;
+        if (army && army.sprite) {
+            army.sprite.setFillStyle(0xffff00); // Yellow when selected
+            army.sprite.setStrokeStyle(3, 0x00ff00); // Green border when selected
+            console.log(`Army ${army.id} visually selected`);
+        } else {
+            console.warn(`Army ${army?.id} has no sprite`);
+        }
+        
+        console.log(`Army ${army.id} selected, this.selectedArmy is now:`, this.selectedArmy?.id);
+    }
+
+    moveSelectedArmy(targetX, targetY) {
+        if (!this.selectedArmy) {
+            console.log('No selected army to move');
+            return false;
+        }
+        
+        console.log(`Moving army ${this.selectedArmy.id} from current position to (${targetX}, ${targetY})`);
+        
+        // Move army to target position
+        this.selectedArmy.setPosition(targetX, targetY);
+        
+        // Update sprite position
+        if (this.selectedArmy.sprite) {
+            const tileSize = 32;
+            const newSpriteX = targetX * tileSize + tileSize / 2;
+            const newSpriteY = targetY * tileSize + tileSize / 2;
+            
+            console.log(`Moving sprite from (${this.selectedArmy.sprite.x}, ${this.selectedArmy.sprite.y}) to (${newSpriteX}, ${newSpriteY})`);
+            
+            this.selectedArmy.sprite.setPosition(newSpriteX, newSpriteY);
+        } else {
+            console.warn(`Army ${this.selectedArmy.id} has no sprite to move`);
+        }
+        
+        console.log(`Army ${this.selectedArmy.id} moved to (${targetX}, ${targetY})`);
+        return true;
+    }
+
+    deselectArmy() {
+        if (this.selectedArmy && this.selectedArmy.sprite) {
+            this.selectedArmy.sprite.setFillStyle(0xff6b6b);
+            this.selectedArmy.sprite.setStrokeStyle(2, 0x000000);
+        }
+        this.selectedArmy = null;
+        console.log('Army deselected');
+    }
+
+    createTestArmy() {
+        // Create a test army for debugging
+        const testArmy = new Army('test_army', this.players[0]);
+        testArmy.addUnits('warrior', 5);
+        testArmy.setPosition(10, 10);
+        
+        this.registerArmy(testArmy);
+        console.log('Test army created at (10, 10)');
+    }
+
+    testArmyMovement() {
+        if (this.selectedArmy) {
+            console.log('Testing army movement with T key');
+            // Move to position (15, 15)
+            const moved = this.moveSelectedArmy(15, 15);
+            if (moved) {
+                console.log('Test movement successful');
+                this.showTileInfo({ x: 15, y: 15 }, 'Test movement: Army moved to (15, 15)');
+            } else {
+                console.log('Test movement failed');
+            }
+        } else {
+            console.log('No army selected for test movement');
+        }
     }
 
     // Pause System Methods
@@ -471,6 +717,11 @@ export default class GameScene extends Phaser.Scene {
         // Destroy pause overlay
         if (this.pauseOverlay) {
             this.pauseOverlay.destroy();
+        }
+
+        // Destroy army sprites
+        if (this.armySprites) {
+            this.armySprites.destroy(true);
         }
 
         if (this.tilemapRenderer) {

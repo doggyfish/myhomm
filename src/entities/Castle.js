@@ -13,6 +13,7 @@ export class Castle extends Entity {
         this.buildings = [];
         this.buildingSlots = 7; // Maximum number of buildings
         this.garrisonArmy = null; // Will hold an Army entity
+        this.dispatchedArmies = []; // Array of armies dispatched from this castle
         this.name = `Castle ${id}`;
         this.isCapital = false;
         this.isDestroyed = false;
@@ -153,6 +154,42 @@ export class Castle extends Entity {
 
     hasGarrison() {
         return this.garrisonArmy !== null;
+    }
+
+    // Dispatched Army Management
+    addDispatchedArmy(army) {
+        if (army && !this.dispatchedArmies.includes(army)) {
+            this.dispatchedArmies.push(army);
+            army.originCastle = this;
+        }
+    }
+
+    removeDispatchedArmy(army) {
+        const index = this.dispatchedArmies.indexOf(army);
+        if (index >= 0) {
+            this.dispatchedArmies.splice(index, 1);
+            if (army.originCastle === this) {
+                army.originCastle = null;
+            }
+        }
+    }
+
+    getDispatchedArmies() {
+        return [...this.dispatchedArmies];
+    }
+
+    hasDispatchedArmies() {
+        return this.dispatchedArmies.length > 0;
+    }
+
+    getDispatchedArmyCount() {
+        return this.dispatchedArmies.length;
+    }
+
+    getTotalDispatchedPower() {
+        return this.dispatchedArmies.reduce((total, army) => {
+            return total + (army.getCurrentPower ? army.getCurrentPower() : 0);
+        }, 0);
     }
 
     // Resource Generation
