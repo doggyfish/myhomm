@@ -502,11 +502,11 @@ export class CastleOverlay {
         // Remove garrison from castle
         this.castle.setGarrisonArmy(null);
 
-        // Create army on the map at castle position
+        // Create army on the map at the same position as castle
         const castlePos = this.castle.getPosition();
         
-        // Move army to an adjacent tile (for simplicity, move one tile to the right)
-        garrison.setPosition(castlePos.x + 1, castlePos.y);
+        // Place army at castle position (not adjacent)
+        garrison.setPosition(castlePos.x, castlePos.y);
         garrison.isGarrison = false;
         garrison.location = null;
 
@@ -518,7 +518,7 @@ export class CastleOverlay {
             this.scene.registerArmy(garrison);
         }
 
-        console.log(`Army dispatched from ${this.castle.name} to position (${castlePos.x + 1}, ${castlePos.y})`);
+        console.log(`Army dispatched from ${this.castle.name} at position (${castlePos.x}, ${castlePos.y})`);
 
         // Clean up confirmation dialog
         this.cancelDispatch();

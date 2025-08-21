@@ -30,6 +30,11 @@ export default class GameScene extends Phaser.Scene {
         // Initialize army management
         this.armies = [];
         this.selectedArmy = null;
+        
+        // Click handling for castle/army interaction
+        this.clickTimer = null;
+        this.clickCount = 0;
+        this.lastClickedCastle = null;
 
         // Create castles from map data
         this.createCastles();
@@ -58,9 +63,6 @@ export default class GameScene extends Phaser.Scene {
 
         // Create army sprites container
         this.createArmySprites();
-
-        // Create test army for debugging movement
-        this.createTestArmy();
     }
 
     createUI() {
@@ -87,13 +89,13 @@ export default class GameScene extends Phaser.Scene {
             'WASD / Arrow Keys - Move camera\n' +
             'Mouse Drag - Pan camera\n' +
             'Mouse Wheel - Zoom in/out\n' +
-            'Click castle - Select castle\n' +
-            'Click tile - Inspect tile\n' +
+            'Single-click castle/army - Select army\n' +
+            'Double-click castle/army - Open castle\n' +
+            'Click tile (army selected) - Move army\n' +
             'F - Toggle fog of war\n' +
             '1-8 - Switch player view\n' +
             'SPACE - Center on most powerful castle\n' +
             'D - Deselect army\n' +
-            'T - Test move selected army (debug)\n' +
             'P/ESC - Pause/Unpause\n' +
             'Shift+ESC - Back to menu',
             {
@@ -161,8 +163,6 @@ export default class GameScene extends Phaser.Scene {
         // Army deselection
         this.input.keyboard.on('keydown-D', () => this.deselectArmy());
         
-        // Test army movement with keyboard
-        this.input.keyboard.on('keydown-T', () => this.testArmyMovement());
     }
 
     updateMapInfo() {
@@ -333,7 +333,7 @@ export default class GameScene extends Phaser.Scene {
                     .on('pointerdown', (pointer, localX, localY, event) => {
                         // Stop event from propagating to tile inspection
                         event.stopPropagation();
-                        this.selectCastle(castleSprite);
+                        this.handleCastleClick(castleSprite);
                     })
                     .on('pointerover', () => {
                         if (!this.castleOverlay.selectedCastleSprite || 
@@ -351,7 +351,7 @@ export default class GameScene extends Phaser.Scene {
         }
     }
 
-    selectCastle(castleSprite) {
+    handleCastleClick(castleSprite) {
         // Find the corresponding castle entity
         const castleX = castleSprite.getData('x');
         const castleY = castleSprite.getData('y');
@@ -361,7 +361,72 @@ export default class GameScene extends Phaser.Scene {
             return pos.x === castleX && pos.y === castleY;
         });
         
-        if (castle) {
+        if (!castle) return;
+
+        // Check for dispatched armies at this castle position
+        const dispatchedArmies = castle.getDispatchedArmies();
+        const armyAtPosition = dispatchedArmies.find(army => {
+            const armyPos = army.getPosition();
+            const castlePos = castle.getPosition();
+            return armyPos.x === castlePos.x && armyPos.y === castlePos.y;
+        });
+
+        // Handle click timing for single vs double click
+        this.clickCount++;
+        
+        if (this.clickTimer) {
+            // This is a second click within the timeout period
+            this.time.removeEvent(this.clickTimer);
+            this.clickTimer = null;
+            this.handleDoubleClick(castle, armyAtPosition, castleSprite);
+            this.clickCount = 0;
+        } else {
+            // This is the first click, start timer
+            this.clickTimer = this.time.delayedCall(300, () => {
+                // Single click timeout - handle single click
+                this.handleSingleClick(castle, armyAtPosition);
+                this.clickTimer = null;
+                this.clickCount = 0;
+            });
+        }
+
+        this.lastClickedCastle = castle;
+    }
+
+    handleSingleClick(castle, armyAtPosition) {
+        console.log('Single click on castle/army position');
+        
+        if (armyAtPosition) {
+            // Select the army at this position
+            this.selectArmy(armyAtPosition);
+            console.log(`Selected army ${armyAtPosition.id} at castle ${castle.name}`);
+        } else {
+            // No army at position, deselect any selected army
+            this.deselectArmy();
+            console.log(`No army to select at castle ${castle.name}`);
+        }
+    }
+
+    handleDoubleClick(castle, armyAtPosition, castleSprite) {
+        console.log('Double click on castle/army position');
+        
+        // Always open castle view on double click
+        this.selectCastle(castle, castleSprite);
+        console.log(`Opened castle view for ${castle.name}`);
+    }
+
+    selectCastle(castle, castleSprite) {
+        // If no sprite provided, find it
+        if (!castleSprite) {
+            castleSprite = this.tilemapRenderer.castleSprites.children.entries.find(sprite => {
+                const spriteX = sprite.getData('x');
+                const spriteY = sprite.getData('y');
+                const castlePos = castle.getPosition();
+                return spriteX === castlePos.x && spriteY === castlePos.y;
+            });
+        }
+        
+        if (castleSprite) {
             this.castleOverlay.show(castle, castleSprite);
         }
     }
@@ -464,11 +529,14 @@ export default class GameScene extends Phaser.Scene {
         
         console.log(`Creating army sprite for ${army.id} at position:`, position);
         
-        // Create army sprite
+        // Create army sprite - offset slightly so it's visible when on castle
+        const offsetX = 8; // Small offset to show army over castle
+        const offsetY = 8;
+        
         const armySprite = this.add.circle(
-            position.x * tileSize + tileSize / 2,
-            position.y * tileSize + tileSize / 2,
-            12, // radius
+            position.x * tileSize + tileSize / 2 + offsetX,
+            position.y * tileSize + tileSize / 2 + offsetY,
+            10, // slightly smaller radius
             0xff6b6b // red color
         );
         
@@ -542,8 +610,10 @@ export default class GameScene extends Phaser.Scene {
         // Update sprite position
         if (this.selectedArmy.sprite) {
             const tileSize = 32;
-            const newSpriteX = targetX * tileSize + tileSize / 2;
-            const newSpriteY = targetY * tileSize + tileSize / 2;
+            const offsetX = 8; // Same offset as creation
+            const offsetY = 8;
+            const newSpriteX = targetX * tileSize + tileSize / 2 + offsetX;
+            const newSpriteY = targetY * tileSize + tileSize / 2 + offsetY;
             
             console.log(`Moving sprite from (${this.selectedArmy.sprite.x}, ${this.selectedArmy.sprite.y}) to (${newSpriteX}, ${newSpriteY})`);
             
@@ -565,31 +635,6 @@ export default class GameScene extends Phaser.Scene {
         console.log('Army deselected');
     }
 
-    createTestArmy() {
-        // Create a test army for debugging
-        const testArmy = new Army('test_army', this.players[0]);
-        testArmy.addUnits('warrior', 5);
-        testArmy.setPosition(10, 10);
-        
-        this.registerArmy(testArmy);
-        console.log('Test army created at (10, 10)');
-    }
-
-    testArmyMovement() {
-        if (this.selectedArmy) {
-            console.log('Testing army movement with T key');
-            // Move to position (15, 15)
-            const moved = this.moveSelectedArmy(15, 15);
-            if (moved) {
-                console.log('Test movement successful');
-                this.showTileInfo({ x: 15, y: 15 }, 'Test movement: Army moved to (15, 15)');
-            } else {
-                console.log('Test movement failed');
-            }
-        } else {
-            console.log('No army selected for test movement');
-        }
-    }
 
     // Pause System Methods
 
