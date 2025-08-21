@@ -529,21 +529,18 @@ export default class GameScene extends Phaser.Scene {
         
         console.log(`Creating army sprite for ${army.id} at position:`, position);
         
-        // Create army sprite - offset slightly so it's visible when on castle
-        const offsetX = 8; // Small offset to show army over castle
-        const offsetY = 8;
-        
+        // Create army sprite centered on tile (same as castle)
         const armySprite = this.add.circle(
-            position.x * tileSize + tileSize / 2 + offsetX,
-            position.y * tileSize + tileSize / 2 + offsetY,
-            10, // slightly smaller radius
+            position.x * tileSize + tileSize / 2,
+            position.y * tileSize + tileSize / 2,
+            8, // smaller radius so it's visible over castle
             0xff6b6b // red color
         );
         
         armySprite.setStrokeStyle(2, 0x000000);
         armySprite.setData('army', army);
         armySprite.setInteractive();
-        armySprite.setDepth(50); // Ensure army sprites are above terrain
+        armySprite.setDepth(100); // Ensure army sprites are above castles and terrain
         
         // Store sprite reference in army
         army.sprite = armySprite;
@@ -610,10 +607,8 @@ export default class GameScene extends Phaser.Scene {
         // Update sprite position
         if (this.selectedArmy.sprite) {
             const tileSize = 32;
-            const offsetX = 8; // Same offset as creation
-            const offsetY = 8;
-            const newSpriteX = targetX * tileSize + tileSize / 2 + offsetX;
-            const newSpriteY = targetY * tileSize + tileSize / 2 + offsetY;
+            const newSpriteX = targetX * tileSize + tileSize / 2;
+            const newSpriteY = targetY * tileSize + tileSize / 2;
             
             console.log(`Moving sprite from (${this.selectedArmy.sprite.x}, ${this.selectedArmy.sprite.y}) to (${newSpriteX}, ${newSpriteY})`);
             
