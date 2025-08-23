@@ -2,15 +2,23 @@ export class CombatSystem {
   static resolveCombat(tile) {
     const factions = tile.getAllFactions();
 
+    // Debug logging
+    console.log(`Combat check at (${tile.x}, ${tile.y}): ${factions.length} factions`, factions);
+    if (tile.units.length > 0) {
+      console.log('Units on tile:', tile.units.map(u => ({ faction: u.factionId, count: u.count })));
+    }
+
     if (factions.length <= 1) {
       // No combat needed - merge same faction units
       if (factions.length === 1) {
+        console.log('Merging same faction units');
         this.mergeSameFactionUnits(tile, factions[0]);
       }
       return;
     }
 
     // Combat between different factions
+    console.log('🔥 COMBAT TRIGGERED! Factions fighting:', factions);
     const combatResults = [];
 
     // Calculate total strength per faction

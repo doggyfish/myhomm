@@ -62,7 +62,60 @@ export class MovementSystem {
 
     this.movingUnits.forEach((unit, index) => {
       const faction = GAME_CONFIG.FACTIONS.find((f) => f.id === unit.factionId);
+      
+      // Store previous tile position
+      const prevTileX = Math.floor(unit.x / GAME_CONFIG.TILE_SIZE);
+      const prevTileY = Math.floor(unit.y / GAME_CONFIG.TILE_SIZE);
+      
       const isComplete = unit.update(deltaTime, faction.speed);
+      
+      // Check if unit moved to a different tile during this update
+      const currentTileX = Math.floor(unit.x / GAME_CONFIG.TILE_SIZE);
+      const currentTileY = Math.floor(unit.y / GAME_CONFIG.TILE_SIZE);
+      
+      if ((prevTileX !== currentTileX || prevTileY !== currentTileY) && 
+          currentTileX >= 0 && currentTileX < GAME_CONFIG.DEFAULT_MAP_SIZE &&
+          currentTileY >= 0 && currentTileY < GAME_CONFIG.DEFAULT_MAP_SIZE) {
+        
+        // Unit entered a new tile - check for combat with existing units
+        const currentTile = map[currentTileY][currentTileX];
+        if (currentTile.units.length > 0) {
+          // Check if there are enemy units on this tile
+          const enemyUnits = currentTile.units.filter(u => u.factionId !== unit.factionId);
+          if (enemyUnits.length > 0) {
+            console.log(`🔥 MOVEMENT COMBAT: ${faction.name} unit passing through tile (${currentTileX}, ${currentTileY}) with enemy units!`);
+            
+            // Temporarily add moving unit to tile for combat resolution
+            const tempUnit = {
+              factionId: unit.factionId,
+              count: unit.count,
+              x: currentTileX,
+              y: currentTileY,
+              isMoving: true
+            };
+            currentTile.addUnit(tempUnit);
+            
+            // Resolve combat
+            CombatSystem.resolveCombat(currentTile);
+            
+            // Check if the moving unit survived combat
+            const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
+            if (survivingUnits.length === 0) {
+              // Unit was destroyed in combat - remove from moving units
+              console.log(`💀 ${faction.name} unit destroyed while passing through!`);
+              this.movingUnits.splice(index, 1);
+              return; // Skip further processing for this unit
+            } else {
+              // Update unit count if it survived with reduced numbers
+              const survivingUnit = survivingUnits[0];
+              unit.count = survivingUnit.count;
+              
+              // Remove the temporary unit from tile (combat resolution may have left it there)
+              currentTile.units = currentTile.units.filter(u => !u.isMoving);
+            }
+          }
+        }
+      }
 
       if (isComplete) {
         completedUnits.push({ unit, index });
