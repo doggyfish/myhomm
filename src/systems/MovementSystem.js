@@ -109,9 +109,10 @@ export class MovementSystem {
               // Update unit count if it survived with reduced numbers
               const survivingUnit = survivingUnits[0];
               unit.count = survivingUnit.count;
+              console.log(`✅ ${faction.name} unit survived with ${unit.count} units, continuing movement`);
               
-              // Remove the temporary unit from tile (combat resolution may have left it there)
-              currentTile.units = currentTile.units.filter(u => !u.isMoving);
+              // IMPORTANT: Remove ALL units of this faction from the tile since they're still moving
+              currentTile.units = currentTile.units.filter(u => u.factionId !== unit.factionId);
             }
           }
         }
