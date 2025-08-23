@@ -148,20 +148,21 @@ export class GameScene extends Phaser.Scene {
             );
           }
 
-          // Add unit count text above castle
+          // Add unit count text inside castle
           const castleUnitText = this.add.text(
             pixelX + GAME_CONFIG.TILE_SIZE / 2,
-            pixelY - 8,
+            pixelY + GAME_CONFIG.TILE_SIZE / 2,
             tile.castle.unitCount.toString(),
             {
-              fontSize: '12px',
+              fontSize: '14px',
               fontFamily: 'Arial',
+              fontStyle: 'bold',
               color: '#ffffff',
               stroke: '#000000',
-              strokeThickness: 2,
+              strokeThickness: 3,
             },
           );
-          castleUnitText.setOrigin(0.5, 1);
+          castleUnitText.setOrigin(0.5, 0.5);
           this.unitCountTexts.push(castleUnitText);
         }
 
@@ -181,21 +182,21 @@ export class GameScene extends Phaser.Scene {
               unitSize / 2,
             );
 
-            // Add unit count text above units (offset from castle text)
-            const unitTextY = tile.castle ? pixelY - 24 : pixelY - 8;
+            // Add unit count text inside unit circle
             const unitCountText = this.add.text(
-              pixelX + GAME_CONFIG.TILE_SIZE / 2,
-              unitTextY,
+              pixelX + unitOffset + unitSize / 2,
+              pixelY + unitOffset + unitSize / 2,
               totalUnits.toString(),
               {
-                fontSize: '10px',
+                fontSize: '8px',
                 fontFamily: 'Arial',
-                color: '#ffff00',
+                fontStyle: 'bold',
+                color: '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 2,
               },
             );
-            unitCountText.setOrigin(0.5, 1);
+            unitCountText.setOrigin(0.5, 0.5);
             this.unitCountTexts.push(unitCountText);
           }
         }
@@ -209,20 +210,21 @@ export class GameScene extends Phaser.Scene {
       this.graphics.fillStyle(faction.color);
       this.graphics.fillCircle(unit.x + GAME_CONFIG.TILE_SIZE / 2, unit.y + GAME_CONFIG.TILE_SIZE / 2, 8);
 
-      // Add unit count text above moving units
+      // Add unit count text inside moving unit circle
       const movingUnitText = this.add.text(
         unit.x + GAME_CONFIG.TILE_SIZE / 2,
-        unit.y - 8,
+        unit.y + GAME_CONFIG.TILE_SIZE / 2,
         unit.count.toString(),
         {
           fontSize: '10px',
           fontFamily: 'Arial',
-          color: '#00ff00',
+          fontStyle: 'bold',
+          color: '#ffffff',
           stroke: '#000000',
-          strokeThickness: 2,
+          strokeThickness: 3,
         },
       );
-      movingUnitText.setOrigin(0.5, 1);
+      movingUnitText.setOrigin(0.5, 0.5);
       this.unitCountTexts.push(movingUnitText);
     });
 
