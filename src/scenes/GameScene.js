@@ -50,11 +50,18 @@ export class GameScene extends Phaser.Scene {
     this.minZoom = 0.3;
     this.maxZoom = 2.0;
 
+    // Setup WASD camera movement
+    this.wasd = this.input.keyboard.addKeys('W,S,A,D');
+    this.cameraSpeed = 300; // pixels per second
+
     // Start game loop
     this.updateProduction();
   }
 
   update(time, delta) {
+    // Handle WASD camera movement
+    this.handleCameraMovement(delta);
+
     // Update movement system
     this.movementSystem.update(delta, this.map);
 
@@ -141,6 +148,43 @@ export class GameScene extends Phaser.Scene {
       this.selectedUnits = null;
       this.selectedTile = null;
     }
+  }
+
+  handleCameraMovement(delta) {
+    const camera = this.cameras.main;
+    const speed = this.cameraSpeed * (delta / 1000); // Convert to pixels per frame
+
+    // WASD camera movement
+    if (this.wasd.A.isDown) {
+      camera.scrollX -= speed;
+    }
+    if (this.wasd.D.isDown) {
+      camera.scrollX += speed;
+    }
+    if (this.wasd.W.isDown) {
+      camera.scrollY -= speed;
+    }
+    if (this.wasd.S.isDown) {
+      camera.scrollY += speed;
+    }
+
+    // Keep camera within map bounds
+    const mapWidth = GAME_CONFIG.DEFAULT_MAP_SIZE * GAME_CONFIG.TILE_SIZE;
+    const mapHeight = GAME_CONFIG.DEFAULT_MAP_SIZE * GAME_CONFIG.TILE_SIZE;
+    const cameraWidth = camera.width / this.currentZoom;
+    const cameraHeight = camera.height / this.currentZoom;
+
+    // Clamp camera position to keep it within map boundaries
+    camera.scrollX = Phaser.Math.Clamp(
+      camera.scrollX,
+      -cameraWidth / 2,
+      mapWidth - cameraWidth / 2
+    );
+    camera.scrollY = Phaser.Math.Clamp(
+      camera.scrollY,
+      -cameraHeight / 2,
+      mapHeight - cameraHeight / 2
+    );
   }
 
   handleZoom(pointer, gameObjects, deltaX, deltaY, deltaZ) {
@@ -305,7 +349,7 @@ export class GameScene extends Phaser.Scene {
   updateUI() {
     let uiText = 'Strategy Game\n';
     uiText += 'Click castle to select, click destination to move units\n';
-    uiText += `Mouse wheel: Zoom (${this.currentZoom.toFixed(1)}x)\n\n`;
+    uiText += `Mouse wheel: Zoom (${this.currentZoom.toFixed(1)}x) | WASD: Move camera\n\n`;
 
     // Show faction info
     GAME_CONFIG.FACTIONS.forEach((faction) => {
