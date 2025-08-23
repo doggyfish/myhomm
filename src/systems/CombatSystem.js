@@ -22,6 +22,16 @@ export class CombatSystem {
       if (factions.length === 1) {
         console.log('Merging same faction units');
         this.mergeSameFactionUnits(tile, factions[0]);
+        
+        // If there's a castle of the same faction, merge units into castle
+        if (tile.castle && tile.castle.factionId === factions[0]) {
+          const tileUnits = tile.getTotalUnitsForFaction(factions[0]);
+          if (tileUnits > 0) {
+            console.log(`🏰 Merging ${tileUnits} units into friendly castle`);
+            tile.castle.unitCount += tileUnits;
+            tile.units = tile.units.filter(unit => unit.factionId !== factions[0]);
+          }
+        }
       }
       return;
     }
