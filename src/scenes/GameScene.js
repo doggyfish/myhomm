@@ -43,6 +43,12 @@ export class GameScene extends Phaser.Scene {
 
     // Setup input handling
     this.input.on('pointerdown', this.handleClick, this);
+    
+    // Setup zoom controls
+    this.input.on('wheel', this.handleZoom, this);
+    this.currentZoom = 0.8;
+    this.minZoom = 0.3;
+    this.maxZoom = 2.0;
 
     // Start game loop
     this.updateProduction();
@@ -134,6 +140,18 @@ export class GameScene extends Phaser.Scene {
       this.selectedCastle = null;
       this.selectedUnits = null;
       this.selectedTile = null;
+    }
+  }
+
+  handleZoom(pointer, gameObjects, deltaX, deltaY, deltaZ) {
+    // Zoom out on wheel up, zoom in on wheel down
+    const zoomDelta = deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = Phaser.Math.Clamp(this.currentZoom + zoomDelta, this.minZoom, this.maxZoom);
+    
+    if (newZoom !== this.currentZoom) {
+      this.currentZoom = newZoom;
+      this.cameras.main.setZoom(this.currentZoom);
+      console.log(`Zoom: ${this.currentZoom.toFixed(1)}x`);
     }
   }
 
@@ -286,7 +304,8 @@ export class GameScene extends Phaser.Scene {
 
   updateUI() {
     let uiText = 'Strategy Game\n';
-    uiText += 'Click castle to select, click destination to move units\n\n';
+    uiText += 'Click castle to select, click destination to move units\n';
+    uiText += `Mouse wheel: Zoom (${this.currentZoom.toFixed(1)}x)\n\n`;
 
     // Show faction info
     GAME_CONFIG.FACTIONS.forEach((faction) => {
