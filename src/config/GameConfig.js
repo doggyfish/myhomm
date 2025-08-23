@@ -5,9 +5,9 @@ export const GAME_CONFIG = {
 
   // Map settings
   TILE_SIZE: 32,
-  MIN_MAP_SIZE: 20,
+  MIN_MAP_SIZE: 10,
   MAX_MAP_SIZE: 50,
-  DEFAULT_MAP_SIZE: 30,
+  DEFAULT_MAP_SIZE: 10,
 
   // Faction settings
   FACTIONS: [
