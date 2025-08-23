@@ -52,8 +52,8 @@ export const GAME_CONFIG = {
   PRODUCTION: {
     MIN_RATE: 1,
     MAX_RATE: 10,
-    DEFAULT_RATE: 3,
-    INTERVAL: 1000, // 1 second = 60 units per minute at rate 1
+    DEFAULT_RATE: 120, // x units per minute
+    INTERVAL: 500, // how often production occurs in milliseconds
   },
 
   // Animation settings
