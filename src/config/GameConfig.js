@@ -28,23 +28,24 @@ export const GAME_CONFIG = {
   // Tile types with probabilities
   TILE_TYPES: [
     {
-      id: 0, name: 'grass', color: 0x228B22, passable: true, probability: 0.4,
+      id: 0, name: 'grass', color: 0x228B22, passable: true, probability: 0.7,
     },
     {
-      id: 1, name: 'water', color: 0x4682B4, passable: false, probability: 0.15,
+      id: 1, name: 'water', color: 0x4682B4, passable: false, probability: 0.2,
     },
     {
       id: 2, name: 'mountain', color: 0x8B4513, passable: false, probability: 0.1,
     },
-    {
-      id: 3, name: 'forest', color: 0x006400, passable: true, probability: 0.2,
-    },
-    {
-      id: 4, name: 'desert', color: 0xF4A460, passable: true, probability: 0.1,
-    },
-    {
-      id: 5, name: 'swamp', color: 0x556B2F, passable: true, probability: 0.05,
-    },
+    // Temporarily disabled for easier testing - uncomment to enable
+    // {
+    //   id: 3, name: 'forest', color: 0x006400, passable: true, probability: 0.15,
+    // },
+    // {
+    //   id: 4, name: 'desert', color: 0xF4A460, passable: true, probability: 0.1,
+    // },
+    // {
+    //   id: 5, name: 'swamp', color: 0x556B2F, passable: true, probability: 0.05,
+    // },
   ],
 
   // Production settings

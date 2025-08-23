@@ -11,6 +11,7 @@ export class GameScene extends Phaser.Scene {
     this.movementSystem = new MovementSystem();
     this.graphics = null;
     this.uiText = null;
+    this.unitCountTexts = []; // Store text objects for unit counts
   }
 
   create() {
@@ -105,6 +106,10 @@ export class GameScene extends Phaser.Scene {
 
   render() {
     this.graphics.clear();
+    
+    // Clear existing unit count texts
+    this.unitCountTexts.forEach((text) => text.destroy());
+    this.unitCountTexts = [];
 
     // Render tiles
     for (let y = 0; y < GAME_CONFIG.DEFAULT_MAP_SIZE; y++) {
@@ -142,6 +147,22 @@ export class GameScene extends Phaser.Scene {
               castleSize + 4,
             );
           }
+
+          // Add unit count text above castle
+          const castleUnitText = this.add.text(
+            pixelX + GAME_CONFIG.TILE_SIZE / 2,
+            pixelY - 8,
+            tile.castle.unitCount.toString(),
+            {
+              fontSize: '12px',
+              fontFamily: 'Arial',
+              color: '#ffffff',
+              stroke: '#000000',
+              strokeThickness: 2,
+            },
+          );
+          castleUnitText.setOrigin(0.5, 1);
+          this.unitCountTexts.push(castleUnitText);
         }
 
         // Draw units on tile
@@ -159,6 +180,23 @@ export class GameScene extends Phaser.Scene {
               pixelY + unitOffset + unitSize / 2,
               unitSize / 2,
             );
+
+            // Add unit count text above units (offset from castle text)
+            const unitTextY = tile.castle ? pixelY - 24 : pixelY - 8;
+            const unitCountText = this.add.text(
+              pixelX + GAME_CONFIG.TILE_SIZE / 2,
+              unitTextY,
+              totalUnits.toString(),
+              {
+                fontSize: '10px',
+                fontFamily: 'Arial',
+                color: '#ffff00',
+                stroke: '#000000',
+                strokeThickness: 2,
+              },
+            );
+            unitCountText.setOrigin(0.5, 1);
+            this.unitCountTexts.push(unitCountText);
           }
         }
       }
@@ -170,6 +208,22 @@ export class GameScene extends Phaser.Scene {
       const faction = GAME_CONFIG.FACTIONS[unit.factionId];
       this.graphics.fillStyle(faction.color);
       this.graphics.fillCircle(unit.x + GAME_CONFIG.TILE_SIZE / 2, unit.y + GAME_CONFIG.TILE_SIZE / 2, 8);
+
+      // Add unit count text above moving units
+      const movingUnitText = this.add.text(
+        unit.x + GAME_CONFIG.TILE_SIZE / 2,
+        unit.y - 8,
+        unit.count.toString(),
+        {
+          fontSize: '10px',
+          fontFamily: 'Arial',
+          color: '#00ff00',
+          stroke: '#000000',
+          strokeThickness: 2,
+        },
+      );
+      movingUnitText.setOrigin(0.5, 1);
+      this.unitCountTexts.push(movingUnitText);
     });
 
     // Draw grid
