@@ -14,6 +14,7 @@ export class GameScene extends Phaser.Scene {
     this.graphics = null;
     this.uiText = null;
     this.unitCountTexts = []; // Store text objects for unit counts
+    this.eliminatedFactions = new Set(); // Track eliminated factions
   }
 
   create() {
@@ -64,6 +65,9 @@ export class GameScene extends Phaser.Scene {
 
     // Update movement system
     this.movementSystem.update(delta, this.map);
+
+    // Check for faction elimination
+    this.checkFactionElimination();
 
     // Render the game
     this.render();
@@ -355,7 +359,12 @@ export class GameScene extends Phaser.Scene {
     GAME_CONFIG.FACTIONS.forEach((faction) => {
       const castles = this.getAllCastlesForFaction(faction.id);
       const totalUnits = this.getTotalUnitsForFaction(faction.id);
-      uiText += `${faction.name}: ${castles.length} castles, ${totalUnits} total units\n`;
+      
+      if (this.eliminatedFactions.has(faction.id)) {
+        uiText += `${faction.name}: ELIMINATED\n`;
+      } else {
+        uiText += `${faction.name}: ${castles.length} castles, ${totalUnits} total units\n`;
+      }
     });
 
     if (this.selectedCastle) {
@@ -422,5 +431,88 @@ export class GameScene extends Phaser.Scene {
     });
 
     return total;
+  }
+
+  checkFactionElimination() {
+    GAME_CONFIG.FACTIONS.forEach((faction) => {
+      // Skip already eliminated factions
+      if (this.eliminatedFactions.has(faction.id)) {
+        return;
+      }
+
+      // Check if faction has any castles
+      const castles = this.getAllCastlesForFaction(faction.id);
+      
+      if (castles.length === 0) {
+        // Faction is eliminated - no castles left
+        console.log(`💀 FACTION ELIMINATED: ${faction.name} has lost all castles!`);
+        
+        // Add to eliminated factions
+        this.eliminatedFactions.add(faction.id);
+        
+        // Remove all units of this faction from the map
+        this.removeAllUnitsForFaction(faction.id);
+        
+        // Show elimination notification
+        this.showEliminationNotification(faction);
+        
+        // Clear selection if eliminated faction was selected
+        if (this.selectedCastle && this.selectedCastle.factionId === faction.id) {
+          this.selectedCastle = null;
+        }
+        if (this.selectedUnits && this.selectedUnits.length > 0 && this.selectedUnits[0].factionId === faction.id) {
+          this.selectedUnits = null;
+          this.selectedTile = null;
+        }
+      }
+    });
+  }
+
+  removeAllUnitsForFaction(factionId) {
+    // Remove all tile units for this faction
+    for (let y = 0; y < GAME_CONFIG.DEFAULT_MAP_SIZE; y++) {
+      for (let x = 0; x < GAME_CONFIG.DEFAULT_MAP_SIZE; x++) {
+        const tile = this.map[y][x];
+        tile.units = tile.units.filter(unit => unit.factionId !== factionId);
+      }
+    }
+
+    // Remove all moving units for this faction
+    this.movementSystem.movingUnits = this.movementSystem.movingUnits.filter(unit => unit.factionId !== factionId);
+    
+    console.log(`🧹 Removed all remaining units for eliminated faction ${factionId}`);
+  }
+
+  showEliminationNotification(faction) {
+    // Create a temporary notification text
+    const notification = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY - 50,
+      `${faction.name} FACTION ELIMINATED!`,
+      {
+        fontSize: '32px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 4,
+        backgroundColor: '#cc0000',
+        padding: { x: 20, y: 10 }
+      }
+    );
+    
+    notification.setOrigin(0.5, 0.5);
+    notification.setScrollFactor(0); // Keep it on screen regardless of camera movement
+    
+    // Fade out the notification after 3 seconds
+    this.tweens.add({
+      targets: notification,
+      alpha: 0,
+      duration: 3000,
+      delay: 2000,
+      onComplete: () => {
+        notification.destroy();
+      }
+    });
   }
 }
