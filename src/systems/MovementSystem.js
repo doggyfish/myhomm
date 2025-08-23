@@ -160,51 +160,69 @@ export class MovementSystem {
       if (unitsOnTile.length < 2) return; // Need at least 2 units for combat
 
       const [tileX, tileY] = tileKey.split(',').map(Number);
-      const tile = map[tileY] && map[tileY][tileX];
-      if (!tile) return;
 
       // Check if there are different factions among moving units
       const factions = new Set(unitsOnTile.map(u => u.factionId));
       if (factions.size > 1) {
         console.log(`⚡ MOVING UNIT COMBAT: ${factions.size} factions crossing paths at (${tileX}, ${tileY})`);
         
-        // Temporarily add all moving units to tile for combat
-        const tempUnits = unitsOnTile.map(unit => ({
-          factionId: unit.factionId,
-          count: unit.count,
-          x: tileX,
-          y: tileY,
-          isMoving: true
-        }));
+        // Resolve combat directly without using tiles - just between moving units
+        const combatResult = this.resolveMovingUnitCombat(unitsOnTile);
         
-        tempUnits.forEach(tempUnit => tile.addUnit(tempUnit));
-        
-        // Resolve combat
-        CombatSystem.resolveCombat(tile);
-        
-        // Update or remove moving units based on combat results
+        // Remove destroyed units from movingUnits array
         unitsOnTile.forEach(unit => {
-          const survivingUnits = tile.getUnitsForFaction(unit.factionId);
-          if (survivingUnits.length === 0) {
-            // Unit destroyed
+          if (!combatResult.survivors.includes(unit)) {
             const index = this.movingUnits.indexOf(unit);
             if (index >= 0) {
               console.log(`💀 ${GAME_CONFIG.FACTIONS[unit.factionId].name} unit destroyed in path crossing!`);
               this.movingUnits.splice(index, 1);
             }
-          } else {
-            // Unit survived, update count
-            unit.count = survivingUnits[0].count;
-            console.log(`✅ ${GAME_CONFIG.FACTIONS[unit.factionId].name} unit survived path crossing with ${unit.count} units`);
           }
         });
         
-        // Clean up temporary units from tile
-        tempUnits.forEach(tempUnit => {
-          tile.units = tile.units.filter(u => u !== tempUnit && u.factionId !== tempUnit.factionId || !u.isMoving);
-        });
+        console.log(`✅ Combat resolved at (${tileX}, ${tileY}) - survivors continue moving`);
       }
     });
+  }
+
+  resolveMovingUnitCombat(unitsInCombat) {
+    // Calculate total strength per faction
+    const factionStrengths = {};
+    unitsInCombat.forEach(unit => {
+      if (!factionStrengths[unit.factionId]) {
+        factionStrengths[unit.factionId] = 0;
+      }
+      factionStrengths[unit.factionId] += unit.count;
+    });
+
+    // Find winning faction
+    let winningFaction = -1;
+    let maxStrength = 0;
+    Object.entries(factionStrengths).forEach(([factionId, strength]) => {
+      if (strength > maxStrength) {
+        winningFaction = parseInt(factionId);
+        maxStrength = strength;
+      }
+    });
+
+    // Calculate survivors
+    const totalEnemyStrength = Object.entries(factionStrengths)
+      .filter(([factionId]) => parseInt(factionId) !== winningFaction)
+      .reduce((sum, [, strength]) => sum + strength, 0);
+    
+    const survivorCount = Math.max(1, maxStrength - totalEnemyStrength);
+    
+    // Update winning units with survivor count
+    const survivors = [];
+    unitsInCombat.forEach(unit => {
+      if (unit.factionId === winningFaction) {
+        unit.count = survivorCount;
+        survivors.push(unit);
+        console.log(`✅ ${GAME_CONFIG.FACTIONS[unit.factionId].name} unit survived with ${unit.count} units, continuing to destination`);
+      }
+    });
+
+    return { survivors, winningFaction };
   }
 
   completeMovement(unit, map) {
