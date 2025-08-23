@@ -36,8 +36,105 @@ export class CombatSystem {
       return;
     }
 
-    // Combat between different factions (including castle)
-    console.log('🔥 COMBAT TRIGGERED! Factions fighting:', factions);
+    // Check if this involves a castle with reinforcements
+    if (tile.castle && tile.units.length > 0) {
+      return this.resolveReinforcedCastleCombat(tile);
+    }
+
+    // Regular combat between different factions
+    return this.resolveRegularCombat(tile, factions);
+  }
+
+  static resolveReinforcedCastleCombat(tile) {
+    console.log('🏰⚔️ REINFORCED CASTLE COMBAT!');
+    
+    const castleFaction = tile.castle.factionId;
+    const reinforcements = tile.getUnitsForFaction(castleFaction);
+    const attackers = tile.units.filter(unit => unit.factionId !== castleFaction);
+    
+    console.log(`Castle faction: ${castleFaction}, Reinforcements: ${reinforcements.length}, Attackers: ${attackers.length}`);
+    
+    if (reinforcements.length === 0) {
+      // No reinforcements, just regular castle combat
+      console.log('No reinforcements found, falling back to regular combat');
+      return this.resolveRegularCombat(tile, tile.getAllFactions().concat([castleFaction]));
+    }
+    
+    if (attackers.length === 0) {
+      console.log('No attackers found, should not happen');
+      return;
+    }
+    
+    // Phase 1: Attackers vs Reinforcements
+    console.log('⚔️ Phase 1: Attackers vs Castle Reinforcements');
+    const reinforcementStrength = reinforcements.reduce((sum, unit) => sum + unit.count, 0);
+    const attackerStrength = attackers.reduce((sum, unit) => sum + unit.count, 0);
+    
+    console.log(`Reinforcements: ${reinforcementStrength}, Attackers: ${attackerStrength}`);
+    
+    if (attackerStrength > reinforcementStrength) {
+      // Attackers win phase 1, continue to castle
+      const survivingAttackers = attackerStrength - reinforcementStrength;
+      console.log(`✅ Attackers won Phase 1 with ${survivingAttackers} survivors`);
+      
+      // Remove reinforcements (keep only non-castle-faction units)
+      tile.units = tile.units.filter(unit => unit.factionId !== castleFaction);
+      
+      // Distribute survivors proportionally among attacking factions
+      const attackerFactions = {};
+      attackers.forEach(unit => {
+        if (!attackerFactions[unit.factionId]) {
+          attackerFactions[unit.factionId] = 0;
+        }
+        attackerFactions[unit.factionId] += unit.count;
+      });
+      
+      // Clear all attacking units and redistribute survivors
+      Object.keys(attackerFactions).forEach(factionId => {
+        tile.units = tile.units.filter(unit => unit.factionId !== parseInt(factionId));
+      });
+      
+      // Add survivors proportionally
+      if (survivingAttackers > 0) {
+        Object.entries(attackerFactions).forEach(([factionId, originalCount]) => {
+          const proportion = originalCount / attackerStrength;
+          const factionSurvivors = Math.floor(survivingAttackers * proportion);
+          if (factionSurvivors > 0) {
+            tile.addUnit({
+              factionId: parseInt(factionId),
+              count: factionSurvivors,
+              x: tile.x,
+              y: tile.y,
+              isMoving: false
+            });
+          }
+        });
+      }
+      
+      // Phase 2: Use regular combat for remaining attackers vs castle
+      console.log(`⚔️ Phase 2: ${survivingAttackers} remaining attackers vs Castle (${tile.castle.unitCount} units)`);
+      
+      // Let regular combat handle multiple attacking factions vs castle
+      const remainingFactions = tile.getAllFactions();
+      remainingFactions.push(castleFaction);
+      return this.resolveRegularCombat(tile, remainingFactions);
+    } else {
+      // Reinforcements win, attackers defeated
+      const survivingReinforcements = reinforcementStrength - attackerStrength;
+      console.log(`🛡️ Reinforcements won! ${survivingReinforcements} reinforcements survive`);
+      
+      // Remove attackers (keep only castle-faction units)  
+      tile.units = tile.units.filter(unit => unit.factionId === castleFaction);
+      if (survivingReinforcements > 0) {
+        // Merge surviving reinforcements back into castle
+        tile.castle.unitCount += survivingReinforcements;
+        tile.units = tile.units.filter(unit => unit.factionId !== castleFaction);
+      }
+    }
+  }
+
+  static resolveRegularCombat(tile, factions) {
+    console.log('⚔️ REGULAR COMBAT!');
     const combatResults = [];
 
     // Calculate total strength per faction (including castle units)
