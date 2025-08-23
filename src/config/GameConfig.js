@@ -15,13 +15,13 @@ export const GAME_CONFIG = {
       id: 0, name: 'Red', color: 0xFF0000, speed: 0.5,
     },
     {
-      id: 1, name: 'Blue', color: 0x0066FF, speed: 1.0,
+      id: 1, name: 'Blue', color: 0x0066FF, speed: 0.75,
     },
     {
-      id: 2, name: 'Green', color: 0x00FF00, speed: 1.5,
+      id: 2, name: 'Green', color: 0x00FF00, speed: 1.0,
     },
     {
-      id: 3, name: 'Yellow', color: 0xFFFF00, speed: 2.0,
+      id: 3, name: 'Yellow', color: 0xFFFF00, speed: 1.5,
     },
   ],
 
