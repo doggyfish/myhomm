@@ -8,6 +8,8 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
     this.map = null;
     this.selectedCastle = null;
+    this.selectedUnits = null; // Store selected unit group
+    this.selectedTile = null; // Store tile of selected units
     this.movementSystem = new MovementSystem();
     this.graphics = null;
     this.uiText = null;
@@ -71,36 +73,67 @@ export class GameScene extends Phaser.Scene {
 
     const clickedTile = this.map[tileY][tileX];
 
-    if (!this.selectedCastle) {
-      // First click - select castle
+    if (!this.selectedCastle && !this.selectedUnits) {
+      // First click - select castle or unit group
       if (clickedTile.castle) {
         this.selectedCastle = clickedTile.castle;
         console.log(`Selected castle at (${tileX}, ${tileY}) with ${this.selectedCastle.unitCount} units`);
+      } else if (clickedTile.units.length > 0) {
+        // Select unit group on this tile
+        this.selectedUnits = clickedTile.units;
+        this.selectedTile = clickedTile;
+        const totalUnits = clickedTile.units.reduce((sum, unit) => sum + unit.count, 0);
+        const faction = GAME_CONFIG.FACTIONS[clickedTile.units[0].factionId];
+        console.log(`Selected ${totalUnits} ${faction.name} units at (${tileX}, ${tileY})`);
       }
     } else {
       // Second click - move units
       if (clickedTile.isPassable()) {
-        const unitCount = Math.floor(this.selectedCastle.unitCount / 1) || 1;
-        const success = this.movementSystem.moveUnits(
-          this.map,
-          this.selectedCastle.x,
-          this.selectedCastle.y,
-          tileX,
-          tileY,
-          unitCount,
-        );
+        let success = false;
+        
+        if (this.selectedCastle) {
+          // Moving from castle
+          const unitCount = Math.floor(this.selectedCastle.unitCount / 1) || 1;
+          success = this.movementSystem.moveUnits(
+            this.map,
+            this.selectedCastle.x,
+            this.selectedCastle.y,
+            tileX,
+            tileY,
+            unitCount,
+          );
+          
+          if (success) {
+            console.log(`Moved ${unitCount} units from castle (${this.selectedCastle.x}, ${this.selectedCastle.y}) to (${tileX}, ${tileY})`);
+          }
+        } else if (this.selectedUnits) {
+          // Moving unit group
+          const totalUnits = this.selectedUnits.reduce((sum, unit) => sum + unit.count, 0);
+          success = this.movementSystem.moveUnits(
+            this.map,
+            this.selectedTile.x,
+            this.selectedTile.y,
+            tileX,
+            tileY,
+            totalUnits,
+          );
+          
+          if (success) {
+            console.log(`Moved ${totalUnits} units from (${this.selectedTile.x}, ${this.selectedTile.y}) to (${tileX}, ${tileY})`);
+          }
+        }
 
-        if (success) {
-          console.log(`Moved ${unitCount} units from (${this.selectedCastle.x}, ${this.selectedCastle.y}) to (${tileX}, ${tileY})`);
-        } else {
+        if (!success) {
           console.log('Movement failed - no valid path or insufficient units');
         }
       } else {
         console.log('Cannot move to impassable tile');
       }
 
-      // Deselect castle
+      // Deselect everything
       this.selectedCastle = null;
+      this.selectedUnits = null;
+      this.selectedTile = null;
     }
   }
 
@@ -182,6 +215,16 @@ export class GameScene extends Phaser.Scene {
               unitSize / 2,
             );
 
+            // Highlight selected units
+            if (this.selectedUnits === tile.units) {
+              this.graphics.lineStyle(3, 0xFFFFFF);
+              this.graphics.strokeCircle(
+                pixelX + unitOffset + unitSize / 2,
+                pixelY + unitOffset + unitSize / 2,
+                unitSize / 2 + 2,
+              );
+            }
+
             // Add unit count text inside unit circle
             const unitCountText = this.add.text(
               pixelX + unitOffset + unitSize / 2,
@@ -255,6 +298,10 @@ export class GameScene extends Phaser.Scene {
     if (this.selectedCastle) {
       const faction = GAME_CONFIG.FACTIONS[this.selectedCastle.factionId];
       uiText += `\nSelected: ${faction.name} castle (${this.selectedCastle.unitCount} units)`;
+    } else if (this.selectedUnits) {
+      const totalUnits = this.selectedUnits.reduce((sum, unit) => sum + unit.count, 0);
+      const faction = GAME_CONFIG.FACTIONS[this.selectedUnits[0].factionId];
+      uiText += `\nSelected: ${totalUnits} ${faction.name} units at (${this.selectedTile.x}, ${this.selectedTile.y})`;
     }
 
     this.uiText.setText(uiText);
