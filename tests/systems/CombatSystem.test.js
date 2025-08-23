@@ -123,4 +123,119 @@ describe('CombatSystem', () => {
       expect(tile.units[0].count).toBe(2);
     });
   });
+
+  describe('Reinforced Castle Combat System', () => {
+    test('should handle two-phase combat: attackers vs reinforcements, then vs castle', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Green castle with reinforcements, Yellow attackers
+      const mockCastle = { factionId: 2, unitCount: 10, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 2, count: 4 }); // Green reinforcements
+      tile.addUnit({ factionId: 3, count: 8 }); // Yellow attackers
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Phase 1: 8 Yellow vs 4 Green reinforcements → Yellow wins with 4 survivors
+      // Phase 2: 4 Yellow vs 10 Green castle → Castle wins
+      expect(tile.castle.factionId).toBe(2); // Castle should remain Green
+      expect(tile.units.length).toBe(0); // No units left on tile
+      expect(tile.castle.unitCount).toBe(6); // 10 - 4 = 6 remaining defenders
+    });
+
+    test('should conquer castle when attackers win both phases', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Weak castle with reinforcements, strong attackers
+      const mockCastle = { factionId: 2, unitCount: 3, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 2, count: 2 }); // Green reinforcements
+      tile.addUnit({ factionId: 3, count: 10 }); // Yellow attackers
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Phase 1: 10 Yellow vs 2 Green reinforcements → Yellow wins with 8 survivors
+      // Phase 2: 8 Yellow vs 3 Green castle → Yellow conquers with 5 survivors
+      expect(tile.castle.factionId).toBe(3); // Castle conquered by Yellow
+      expect(tile.castle.unitCount).toBe(Math.max(1, 5)); // 5 survivors in castle
+      expect(tile.units.length).toBe(0); // No units on tile
+    });
+
+    test('should handle multi-faction attacks with proportional survivors', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Green castle, Red+Blue attackers
+      const mockCastle = { factionId: 2, unitCount: 5, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 2, count: 3 }); // Green reinforcements
+      tile.addUnit({ factionId: 0, count: 6 }); // Red attackers (60%)
+      tile.addUnit({ factionId: 1, count: 4 }); // Blue attackers (40%)
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Phase 1: 10 attackers vs 3 reinforcements → 7 survivors
+      // Survivors distributed proportionally: Red gets 4, Blue gets 3
+      // This will proceed to Phase 2 with regular combat resolution
+      expect(tile.castle.factionId).not.toBe(2); // Castle should be conquered
+    });
+
+    test('should defend castle when reinforcements defeat attackers', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Strong reinforcements vs weak attackers
+      const mockCastle = { factionId: 2, unitCount: 8, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 2, count: 12 }); // Strong Green reinforcements
+      tile.addUnit({ factionId: 3, count: 7 }); // Weak Yellow attackers
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Phase 1: 7 Yellow vs 12 Green reinforcements → Reinforcements win with 5 survivors
+      // Survivors merge back into castle: 8 + 5 = 13
+      expect(tile.castle.factionId).toBe(2); // Castle remains Green
+      expect(tile.castle.unitCount).toBe(13); // Original castle + surviving reinforcements
+      expect(tile.units.length).toBe(0); // No units on tile
+    });
+
+    test('should fallback to regular combat when no reinforcements present', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Castle with no reinforcements
+      const mockCastle = { factionId: 2, unitCount: 8, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 3, count: 12 }); // Direct castle attack
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Should use regular combat: 12 Yellow vs 8 Green castle → Yellow wins
+      expect(tile.castle.factionId).toBe(3); // Castle conquered
+      expect(tile.units.length).toBe(0); // No units on tile
+    });
+
+    test('should handle three-way multi-faction castle attack', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Setup: Green castle vs Red+Blue+Yellow attackers
+      const mockCastle = { factionId: 2, unitCount: 6, x: 5, y: 5 };
+      tile.setCastle(mockCastle);
+      tile.addUnit({ factionId: 2, count: 2 }); // Green reinforcements
+      tile.addUnit({ factionId: 0, count: 4 }); // Red attackers
+      tile.addUnit({ factionId: 1, count: 3 }); // Blue attackers  
+      tile.addUnit({ factionId: 3, count: 5 }); // Yellow attackers
+      
+      CombatSystem.resolveCombat(tile);
+      
+      // Phase 1: 12 total attackers vs 2 reinforcements → 10 survivors
+      // Phase 2: 10 attackers vs 6 castle → Attackers win
+      // Castle should be conquered by the faction with highest survivor count
+      expect(tile.castle.factionId).not.toBe(2); // Castle conquered
+      expect(tile.units.length).toBe(0); // No units on tile
+    });
+  });
 });

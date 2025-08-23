@@ -66,6 +66,7 @@ export class MovementSystem {
   update(deltaTime, map) {
     const completedUnits = [];
 
+    // First, update all unit positions
     this.movingUnits.forEach((unit, index) => {
       const faction = GAME_CONFIG.FACTIONS.find((f) => f.id === unit.factionId);
       
@@ -129,10 +130,80 @@ export class MovementSystem {
       }
     });
 
+    // Check for moving-unit-to-moving-unit combat (units crossing paths)
+    this.checkMovingUnitCombat(map);
+
     // Handle completed movements
     completedUnits.reverse().forEach(({ unit, index }) => {
       this.completeMovement(unit, map);
       this.movingUnits.splice(index, 1);
+    });
+  }
+
+  checkMovingUnitCombat(map) {
+    // Group moving units by their current tile positions
+    const tileUnits = {};
+    
+    this.movingUnits.forEach(unit => {
+      const tileX = Math.floor(unit.x / GAME_CONFIG.TILE_SIZE);
+      const tileY = Math.floor(unit.y / GAME_CONFIG.TILE_SIZE);
+      const tileKey = `${tileX},${tileY}`;
+      
+      if (!tileUnits[tileKey]) {
+        tileUnits[tileKey] = [];
+      }
+      tileUnits[tileKey].push(unit);
+    });
+
+    // Check each tile for combat between moving units
+    Object.entries(tileUnits).forEach(([tileKey, unitsOnTile]) => {
+      if (unitsOnTile.length < 2) return; // Need at least 2 units for combat
+
+      const [tileX, tileY] = tileKey.split(',').map(Number);
+      const tile = map[tileY] && map[tileY][tileX];
+      if (!tile) return;
+
+      // Check if there are different factions among moving units
+      const factions = new Set(unitsOnTile.map(u => u.factionId));
+      if (factions.size > 1) {
+        console.log(`⚡ MOVING UNIT COMBAT: ${factions.size} factions crossing paths at (${tileX}, ${tileY})`);
+        
+        // Temporarily add all moving units to tile for combat
+        const tempUnits = unitsOnTile.map(unit => ({
+          factionId: unit.factionId,
+          count: unit.count,
+          x: tileX,
+          y: tileY,
+          isMoving: true
+        }));
+        
+        tempUnits.forEach(tempUnit => tile.addUnit(tempUnit));
+        
+        // Resolve combat
+        CombatSystem.resolveCombat(tile);
+        
+        // Update or remove moving units based on combat results
+        unitsOnTile.forEach(unit => {
+          const survivingUnits = tile.getUnitsForFaction(unit.factionId);
+          if (survivingUnits.length === 0) {
+            // Unit destroyed
+            const index = this.movingUnits.indexOf(unit);
+            if (index >= 0) {
+              console.log(`💀 ${GAME_CONFIG.FACTIONS[unit.factionId].name} unit destroyed in path crossing!`);
+              this.movingUnits.splice(index, 1);
+            }
+          } else {
+            // Unit survived, update count
+            unit.count = survivingUnits[0].count;
+            console.log(`✅ ${GAME_CONFIG.FACTIONS[unit.factionId].name} unit survived path crossing with ${unit.count} units`);
+          }
+        });
+        
+        // Clean up temporary units from tile
+        tempUnits.forEach(tempUnit => {
+          tile.units = tile.units.filter(u => u !== tempUnit && u.factionId !== tempUnit.factionId || !u.isMoving);
+        });
+      }
     });
   }
 
