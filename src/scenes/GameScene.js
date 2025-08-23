@@ -15,6 +15,8 @@ export class GameScene extends Phaser.Scene {
     this.uiText = null;
     this.unitCountTexts = []; // Store text objects for unit counts
     this.eliminatedFactions = new Set(); // Track eliminated factions
+    this.gameWon = false; // Track if game has been won
+    this.winningFaction = null; // Store winning faction
   }
 
   create() {
@@ -60,13 +62,20 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time, delta) {
+    // Stop processing if game is won
+    if (this.gameWon) {
+      this.render();
+      this.updateUI();
+      return;
+    }
+
     // Handle WASD camera movement
     this.handleCameraMovement(delta);
 
     // Update movement system
     this.movementSystem.update(delta, this.map);
 
-    // Check for faction elimination
+    // Check for faction elimination and victory
     this.checkFactionElimination();
 
     // Render the game
@@ -77,6 +86,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleClick(pointer) {
+    // Disable input if game is won
+    if (this.gameWon) {
+      return;
+    }
+    
     const { worldX } = pointer;
     const { worldY } = pointer;
     const tileX = Math.floor(worldX / GAME_CONFIG.TILE_SIZE);
@@ -352,8 +366,14 @@ export class GameScene extends Phaser.Scene {
 
   updateUI() {
     let uiText = 'Strategy Game\n';
-    uiText += 'Click castle to select, click destination to move units\n';
-    uiText += `Mouse wheel: Zoom (${this.currentZoom.toFixed(1)}x) | WASD: Move camera\n\n`;
+    
+    if (this.gameWon) {
+      uiText += `🎉 ${this.winningFaction.name} FACTION WINS! 🎉\n`;
+      uiText += 'Game Over - Refresh page to play again\n\n';
+    } else {
+      uiText += 'Click castle to select, click destination to move units\n';
+      uiText += `Mouse wheel: Zoom (${this.currentZoom.toFixed(1)}x) | WASD: Move camera\n\n`;
+    }
 
     // Show faction info
     GAME_CONFIG.FACTIONS.forEach((faction) => {
@@ -466,6 +486,37 @@ export class GameScene extends Phaser.Scene {
         }
       }
     });
+
+    // Check for victory condition
+    this.checkVictoryCondition();
+  }
+
+  checkVictoryCondition() {
+    // Don't check victory if game already won
+    if (this.gameWon) {
+      return;
+    }
+
+    // Count surviving factions (those with at least one castle)
+    const survivingFactions = GAME_CONFIG.FACTIONS.filter(faction => {
+      return !this.eliminatedFactions.has(faction.id);
+    });
+
+    // Victory condition: only one faction remains
+    if (survivingFactions.length === 1) {
+      this.winningFaction = survivingFactions[0];
+      this.gameWon = true;
+      
+      console.log(`🎉 VICTORY: ${this.winningFaction.name} has conquered all other factions!`);
+      
+      // Show victory notification
+      this.showVictoryNotification();
+      
+      // Clear any selections
+      this.selectedCastle = null;
+      this.selectedUnits = null;
+      this.selectedTile = null;
+    }
   }
 
   removeAllUnitsForFaction(factionId) {
@@ -513,6 +564,59 @@ export class GameScene extends Phaser.Scene {
       onComplete: () => {
         notification.destroy();
       }
+    });
+  }
+
+  showVictoryNotification() {
+    // Create victory notification with faction color
+    const victoryText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY - 100,
+      `🎉 VICTORY! 🎉\n${this.winningFaction.name} FACTION WINS!`,
+      {
+        fontSize: '48px',
+        fontFamily: 'Arial',
+        fontStyle: 'bold',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 6,
+        backgroundColor: '#00aa00',
+        padding: { x: 30, y: 20 },
+        align: 'center'
+      }
+    );
+    
+    victoryText.setOrigin(0.5, 0.5);
+    victoryText.setScrollFactor(0);
+
+    // Create restart instruction
+    const restartText = this.add.text(
+      this.cameras.main.centerX,
+      this.cameras.main.centerY + 50,
+      'Refresh page to play again',
+      {
+        fontSize: '24px',
+        fontFamily: 'Arial',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 3,
+        backgroundColor: '#333333',
+        padding: { x: 20, y: 10 }
+      }
+    );
+    
+    restartText.setOrigin(0.5, 0.5);
+    restartText.setScrollFactor(0);
+
+    // Add victory animation - pulsing effect
+    this.tweens.add({
+      targets: victoryText,
+      scaleX: 1.1,
+      scaleY: 1.1,
+      duration: 1000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut'
     });
   }
 }
