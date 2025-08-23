@@ -80,7 +80,7 @@ export class GameScene extends Phaser.Scene {
     } else {
       // Second click - move units
       if (clickedTile.isPassable()) {
-        const unitCount = Math.floor(this.selectedCastle.unitCount / 2) || 1;
+        const unitCount = Math.floor(this.selectedCastle.unitCount / 1) || 1;
         const success = this.movementSystem.moveUnits(
           this.map,
           this.selectedCastle.x,
