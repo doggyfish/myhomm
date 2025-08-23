@@ -9,6 +9,12 @@ export class MovementSystem {
   }
 
   moveUnits(map, fromX, fromY, toX, toY, unitCount) {
+    // Prevent moving to the same location
+    if (fromX === toX && fromY === toY) {
+      console.log('Cannot move units to the same location');
+      return false;
+    }
+
     const fromTile = map[fromY][fromX];
     const toTile = map[toY][toX];
 
