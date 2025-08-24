@@ -49,8 +49,10 @@ export class CombatSystem {
         const currentTileY = Math.floor(movingUnit.y / TILE_SIZE);
         const distanceFromCastle = Math.abs(currentTileX - castleTile.x) + Math.abs(currentTileY - castleTile.y);
         
-        // If moving unit is within 1 tile of the castle, they can reinforce
-        if (distanceFromCastle <= 1) {
+        console.log(`   Checking moving unit: ${movingUnit.count} units at (${currentTileX}, ${currentTileY}), distance ${distanceFromCastle} from castle (${castleTile.x}, ${castleTile.y})`);
+        
+        // If moving unit is within 3 tiles of the castle, they can reinforce
+        if (distanceFromCastle <= 3) {
           const unitAsReinforcement = {
             factionId: movingUnit.factionId,
             count: movingUnit.count,
