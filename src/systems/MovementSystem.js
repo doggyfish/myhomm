@@ -32,7 +32,6 @@ export class MovementSystem {
 
     // Find path
     const path = PathfindingSystem.findPath(map, fromX, fromY, toX, toY);
-
     if (path.length === 0 && (fromX !== toX || fromY !== toY)) {
       return false; // No valid path found
     }

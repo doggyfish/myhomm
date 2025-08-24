@@ -10,8 +10,8 @@ export class PathfindingSystem {
       return [];
     }
 
-    // If destination is not passable, return empty path
-    if (!map[endY][endX].isPassable()) {
+    // If destination is not passable (except for castle tiles which are valid targets), return empty path
+    if (!map[endY][endX].isPassable() && !map[endY][endX].castle) {
       return [];
     }
 
@@ -54,7 +54,7 @@ export class PathfindingSystem {
       for (const neighbor of neighbors) {
         const neighborKey = `${neighbor.x},${neighbor.y}`;
 
-        if (closedSet.has(neighborKey) || !map[neighbor.y][neighbor.x].isPassable()) {
+        if (closedSet.has(neighborKey) || (!map[neighbor.y][neighbor.x].isPassable() && !map[neighbor.y][neighbor.x].castle)) {
           continue;
         }
 

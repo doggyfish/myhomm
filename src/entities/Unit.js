@@ -40,6 +40,7 @@ export class Unit {
     const dy = target.y - this.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
+
     if (distance < 1) {
       // Reached current target
       this.x = target.x;
@@ -58,8 +59,25 @@ export class Unit {
     } else {
       // Move towards current target
       const moveDistance = actualSpeed * deltaTime / 1000;
-      this.x += (dx / distance) * moveDistance;
-      this.y += (dy / distance) * moveDistance;
+      
+      // Prevent overshooting the target
+      if (moveDistance >= distance) {
+        // If we would overshoot, just move to the target
+        this.x = target.x;
+        this.y = target.y;
+        this.pathIndex++;
+        if (this.pathIndex >= this.path.length) {
+          this.isMoving = false;
+          this.path = [];
+          return true;
+        }
+        this.targetX = this.path[this.pathIndex].x;
+        this.targetY = this.path[this.pathIndex].y;
+      } else {
+        // Normal movement
+        this.x += (dx / distance) * moveDistance;
+        this.y += (dy / distance) * moveDistance;
+      }
     }
 
     return false;
