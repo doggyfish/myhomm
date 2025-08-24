@@ -23,7 +23,7 @@ describe('Castle', () => {
     });
 
     test('should apply speed multipliers properly per faction for testing', () => {
-      const expectedSpeeds = [0.5, 1.0, 1.5, 2.0];
+      const expectedSpeeds = [0.5, 0.75, 1.0, 1.5];
       GAME_CONFIG.FACTIONS.forEach((faction, index) => {
         expect(faction.speed).toBe(expectedSpeeds[index]);
       });

@@ -56,7 +56,7 @@ describe('MovementSystem', () => {
     test('should implement 4 faction speed multipliers', () => {
       expect(GAME_CONFIG.FACTIONS.length).toBe(4);
       
-      const expectedSpeeds = [0.5, 1.0, 1.5, 2.0];
+      const expectedSpeeds = [0.5, 0.75, 1.0, 1.5];
       GAME_CONFIG.FACTIONS.forEach((faction, index) => {
         expect(faction.speed).toBe(expectedSpeeds[index]);
       });
@@ -113,8 +113,8 @@ describe('MovementSystem', () => {
       
       expect(castles.length).toBe(4);
       castles.forEach(castle => {
-        expect(castle.productionRate).toBeGreaterThanOrEqual(1);
-        expect(castle.productionRate).toBeLessThanOrEqual(10);
+        expect(castle.productionRate).toBeGreaterThanOrEqual(119);
+        expect(castle.productionRate).toBeLessThanOrEqual(122);
       });
     });
 

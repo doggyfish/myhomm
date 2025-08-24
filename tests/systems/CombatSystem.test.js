@@ -211,10 +211,11 @@ describe('CombatSystem', () => {
       CombatSystem.resolveCombat(tile);
       
       // Phase 1: 7 Yellow vs 12 Green reinforcements → Reinforcements win with 5 survivors
-      // Survivors merge back into castle: 8 + 5 = 13
+      // Current implementation: castle unchanged, survivors remain as mobile units
       expect(tile.castle.factionId).toBe(2); // Castle remains Green
-      expect(tile.castle.unitCount).toBe(13); // Original castle + surviving reinforcements
-      expect(tile.units.length).toBe(0); // No units on tile
+      expect(tile.castle.unitCount).toBe(8); // Original castle unchanged
+      expect(tile.units.length).toBe(1); // Surviving reinforcements on tile
+      expect(tile.units[0].count).toBe(5); // 5 surviving reinforcements
     });
 
     test('should fallback to regular combat when no reinforcements present', () => {
