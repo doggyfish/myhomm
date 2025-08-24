@@ -52,6 +52,7 @@ export class MovementSystem {
     movingUnit.setPath(pixelPath);
     movingUnit.speed = GAME_CONFIG.ANIMATION.UNIT_SPEED;
     movingUnit.destinationTile = { x: toX, y: toY };
+    movingUnit.originTile = { x: fromX, y: fromY };
 
     // Remove units from source
     this.removeUnitsFromTile(fromTile, factionId, unitCount);
@@ -107,7 +108,7 @@ export class MovementSystem {
           currentTile.addUnit(tempUnit);
           
           // Resolve combat
-          CombatSystem.resolveCombat(currentTile, map);
+          CombatSystem.resolveCombat(currentTile, map, this.movingUnits);
           
           // Check if the moving unit survived combat
           const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
@@ -250,7 +251,7 @@ export class MovementSystem {
     destTile.addUnit(stationaryUnit);
 
     // Resolve combat or merging
-    CombatSystem.resolveCombat(destTile, map);
+    CombatSystem.resolveCombat(destTile, map, this.movingUnits);
   }
 
   canMoveUnits(fromTile, unitCount) {

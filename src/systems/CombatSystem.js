@@ -21,8 +21,8 @@ export class CombatSystem {
     return surroundingTiles;
   }
   
-  // Get all reinforcement units for a faction from castle tile and surrounding tiles
-  static getAllReinforcementsForCastle(castleTile, castleFaction, map) {
+  // Get all reinforcement units for a faction from castle tile, surrounding tiles, and nearby moving units
+  static getAllReinforcementsForCastle(castleTile, castleFaction, map, movingUnits = []) {
     const allReinforcements = [];
     
     // Units on the castle tile itself
@@ -40,10 +40,35 @@ export class CombatSystem {
       });
     });
     
+    // Check for nearby moving units that could return to reinforce
+    movingUnits.forEach(movingUnit => {
+      if (movingUnit.factionId === castleFaction) {
+        // Calculate distance from moving unit's current position to castle
+        const TILE_SIZE = 64; // TODO: Import from GAME_CONFIG
+        const currentTileX = Math.floor(movingUnit.x / TILE_SIZE);
+        const currentTileY = Math.floor(movingUnit.y / TILE_SIZE);
+        const distanceFromCastle = Math.abs(currentTileX - castleTile.x) + Math.abs(currentTileY - castleTile.y);
+        
+        // If moving unit is within 1 tile of the castle, they can reinforce
+        if (distanceFromCastle <= 1) {
+          const unitAsReinforcement = {
+            factionId: movingUnit.factionId,
+            count: movingUnit.count,
+            isMoving: true
+          };
+          allReinforcements.push({ 
+            unit: unitAsReinforcement, 
+            tile: null, 
+            location: `moving_unit_${distanceFromCastle}tiles_away` 
+          });
+        }
+      }
+    });
+    
     return allReinforcements;
   }
 
-  static resolveCombat(tile, map = null) {
+  static resolveCombat(tile, map = null, movingUnits = []) {
     console.log('='.repeat(60));
     console.log(`🎯 COMBAT INITIATED at tile (${tile.x}, ${tile.y})`);
     console.log('='.repeat(60));
@@ -104,10 +129,10 @@ export class CombatSystem {
     if (tile.castle && tile.units.length > 0) {
       const enemyUnits = tile.units.filter(unit => unit.factionId !== tile.castle.factionId);
       
-      // Check for reinforcements (castle tile + surrounding tiles)
+      // Check for reinforcements (castle tile + surrounding tiles + nearby moving units)
       let allReinforcements = [];
       if (map) {
-        allReinforcements = this.getAllReinforcementsForCastle(tile, tile.castle.factionId, map);
+        allReinforcements = this.getAllReinforcementsForCastle(tile, tile.castle.factionId, map, movingUnits);
       } else {
         // Fallback to old behavior if no map provided
         const castleFactionUnits = tile.getUnitsForFaction(tile.castle.factionId);
@@ -125,7 +150,7 @@ export class CombatSystem {
       
       if (allReinforcements.length > 0) {
         console.log('   → REINFORCED CASTLE COMBAT');
-        return this.resolveReinforcedCastleCombat(tile, map);
+        return this.resolveReinforcedCastleCombat(tile, map, movingUnits);
       } else {
         console.log('   → CASTLE UNDER ATTACK (no friendly reinforcements)');
         return this.resolveRegularCombat(tile, factions);
@@ -139,17 +164,17 @@ export class CombatSystem {
     }
   }
 
-  static resolveReinforcedCastleCombat(tile, map = null) {
+  static resolveReinforcedCastleCombat(tile, map = null, movingUnits = []) {
     console.log('');
     console.log('🏰⚔️ REINFORCED CASTLE COMBAT ANALYSIS:');
     console.log('-'.repeat(50));
     
     const castleFaction = tile.castle.factionId;
     
-    // Get all reinforcements (castle tile + surrounding tiles)
+    // Get all reinforcements (castle tile + surrounding tiles + nearby moving units)
     let allReinforcements = [];
     if (map) {
-      allReinforcements = this.getAllReinforcementsForCastle(tile, castleFaction, map);
+      allReinforcements = this.getAllReinforcementsForCastle(tile, castleFaction, map, movingUnits);
     } else {
       // Fallback to old behavior
       const castleFactionUnits = tile.getUnitsForFaction(castleFaction);
@@ -226,7 +251,13 @@ export class CombatSystem {
       console.log(`🧹 Removing all defender reinforcements from castle area`);
       allReinforcements.forEach(reinforcement => {
         console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
-        reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+        if (reinforcement.tile) {
+          // Remove from tile (stationary units)
+          reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+        } else {
+          // Remove from moving units array (moving units)  
+          console.log(`       (Moving unit removed from movement queue)`);
+        }
       });
       
       // Determine winning attacker faction (in case of multiple)
@@ -300,7 +331,13 @@ export class CombatSystem {
         // Remove all reinforcements from all tiles
         allReinforcements.forEach(reinforcement => {
           console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
-          reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+          if (reinforcement.tile) {
+            // Remove from tile (stationary units)
+            reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+          } else {
+            // Remove from moving units array (moving units)
+            console.log(`       (Moving unit removed from movement queue)`);
+          }
         });
         
         // Update castle with survivors
@@ -321,7 +358,13 @@ export class CombatSystem {
         // Update reinforcements - remove all then add survivors to castle tile
         allReinforcements.forEach(reinforcement => {
           console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
-          reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+          if (reinforcement.tile) {
+            // Remove from tile (stationary units)
+            reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+          } else {
+            // Remove from moving units array (moving units)
+            console.log(`       (Moving unit removed from movement queue)`);
+          }
         });
         
         if (reinforcementSurvivors > 0) {
