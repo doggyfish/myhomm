@@ -107,7 +107,7 @@ export class MovementSystem {
           currentTile.addUnit(tempUnit);
           
           // Resolve combat
-          CombatSystem.resolveCombat(currentTile);
+          CombatSystem.resolveCombat(currentTile, map);
           
           // Check if the moving unit survived combat
           const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
@@ -250,7 +250,7 @@ export class MovementSystem {
     destTile.addUnit(stationaryUnit);
 
     // Resolve combat or merging
-    CombatSystem.resolveCombat(destTile);
+    CombatSystem.resolveCombat(destTile, map);
   }
 
   canMoveUnits(fromTile, unitCount) {

@@ -1,5 +1,49 @@
 export class CombatSystem {
-  static resolveCombat(tile) {
+  // Helper function to get all neighboring tiles (including diagonal)
+  static getSurroundingTiles(tile, map) {
+    const surroundingTiles = [];
+    const directions = [
+      { dx: -1, dy: -1 }, { dx: 0, dy: -1 }, { dx: 1, dy: -1 },
+      { dx: -1, dy: 0 },  /*center tile*/     { dx: 1, dy: 0 },
+      { dx: -1, dy: 1 },  { dx: 0, dy: 1 },  { dx: 1, dy: 1 }
+    ];
+    
+    for (const dir of directions) {
+      const newX = tile.x + dir.dx;
+      const newY = tile.y + dir.dy;
+      
+      // Check bounds
+      if (newX >= 0 && newX < map[0].length && newY >= 0 && newY < map.length) {
+        surroundingTiles.push(map[newY][newX]);
+      }
+    }
+    
+    return surroundingTiles;
+  }
+  
+  // Get all reinforcement units for a faction from castle tile and surrounding tiles
+  static getAllReinforcementsForCastle(castleTile, castleFaction, map) {
+    const allReinforcements = [];
+    
+    // Units on the castle tile itself
+    const castleTileUnits = castleTile.getUnitsForFaction(castleFaction);
+    castleTileUnits.forEach(unit => {
+      allReinforcements.push({ unit, tile: castleTile, location: 'castle_tile' });
+    });
+    
+    // Units on surrounding tiles
+    const surroundingTiles = this.getSurroundingTiles(castleTile, map);
+    surroundingTiles.forEach(tile => {
+      const reinforcementUnits = tile.getUnitsForFaction(castleFaction);
+      reinforcementUnits.forEach(unit => {
+        allReinforcements.push({ unit, tile, location: 'surrounding' });
+      });
+    });
+    
+    return allReinforcements;
+  }
+
+  static resolveCombat(tile, map = null) {
     console.log('='.repeat(60));
     console.log(`🎯 COMBAT INITIATED at tile (${tile.x}, ${tile.y})`);
     console.log('='.repeat(60));
@@ -58,18 +102,32 @@ export class CombatSystem {
     // Determine combat type
     console.log('🔍 COMBAT TYPE DETERMINATION:');
     if (tile.castle && tile.units.length > 0) {
-      const castleFactionUnits = tile.getUnitsForFaction(tile.castle.factionId);
       const enemyUnits = tile.units.filter(unit => unit.factionId !== tile.castle.factionId);
       
+      // Check for reinforcements (castle tile + surrounding tiles)
+      let allReinforcements = [];
+      if (map) {
+        allReinforcements = this.getAllReinforcementsForCastle(tile, tile.castle.factionId, map);
+      } else {
+        // Fallback to old behavior if no map provided
+        const castleFactionUnits = tile.getUnitsForFaction(tile.castle.factionId);
+        castleFactionUnits.forEach(unit => {
+          allReinforcements.push({ unit, tile, location: 'castle_tile' });
+        });
+      }
+      
       console.log(`   Castle present: Faction ${tile.castle.factionId}`);
-      console.log(`   Friendly reinforcements: ${castleFactionUnits.length} unit groups`);
+      console.log(`   Friendly reinforcements: ${allReinforcements.length} unit groups`);
+      allReinforcements.forEach(reinforcement => {
+        console.log(`     • ${reinforcement.unit.count} units from ${reinforcement.location} ${reinforcement.unit.isMoving ? '(moving)' : '(stationary)'}`);
+      });
       console.log(`   Enemy attackers: ${enemyUnits.length} unit groups`);
       
-      if (castleFactionUnits.length > 0) {
+      if (allReinforcements.length > 0) {
         console.log('   → REINFORCED CASTLE COMBAT');
-        return this.resolveReinforcedCastleCombat(tile);
+        return this.resolveReinforcedCastleCombat(tile, map);
       } else {
-        console.log('   → REGULAR CASTLE COMBAT (no reinforcements)');
+        console.log('   → CASTLE UNDER ATTACK (no friendly reinforcements)');
         return this.resolveRegularCombat(tile, factions);
       }
     } else if (tile.castle) {
@@ -81,27 +139,40 @@ export class CombatSystem {
     }
   }
 
-  static resolveReinforcedCastleCombat(tile) {
+  static resolveReinforcedCastleCombat(tile, map = null) {
     console.log('');
     console.log('🏰⚔️ REINFORCED CASTLE COMBAT ANALYSIS:');
     console.log('-'.repeat(50));
     
     const castleFaction = tile.castle.factionId;
-    const reinforcements = tile.getUnitsForFaction(castleFaction);
+    
+    // Get all reinforcements (castle tile + surrounding tiles)
+    let allReinforcements = [];
+    if (map) {
+      allReinforcements = this.getAllReinforcementsForCastle(tile, castleFaction, map);
+    } else {
+      // Fallback to old behavior
+      const castleFactionUnits = tile.getUnitsForFaction(castleFaction);
+      castleFactionUnits.forEach(unit => {
+        allReinforcements.push({ unit, tile, location: 'castle_tile' });
+      });
+    }
+    
     const attackers = tile.units.filter(unit => unit.factionId !== castleFaction);
     
     console.log(`📋 FORCE COMPOSITION:`);
     console.log(`   Castle: Faction ${castleFaction} with ${tile.castle.unitCount} units`);
-    console.log(`   Reinforcement groups: ${reinforcements.length}`);
-    reinforcements.forEach((unit, i) => {
-      console.log(`     ${i+1}. ${unit.count} units (Faction ${unit.factionId})`);
+    console.log(`   Reinforcement groups: ${allReinforcements.length}`);
+    allReinforcements.forEach((reinforcement, i) => {
+      const movingStatus = reinforcement.unit.isMoving ? '(moving)' : '(stationary)';
+      console.log(`     ${i+1}. ${reinforcement.unit.count} units from ${reinforcement.location} ${movingStatus}`);
     });
     console.log(`   Attacker groups: ${attackers.length}`);
     attackers.forEach((unit, i) => {
       console.log(`     ${i+1}. ${unit.count} units (Faction ${unit.factionId})`);
     });
     
-    if (reinforcements.length === 0) {
+    if (allReinforcements.length === 0) {
       console.log('❌ ERROR: No reinforcements found, falling back to regular combat');
       return this.resolveRegularCombat(tile, tile.getAllFactions().concat([castleFaction]));
     }
@@ -111,18 +182,36 @@ export class CombatSystem {
       return;
     }
     
-    // COMBINED DEFENSE: Reinforcements + Castle fight as one force
-    const reinforcementStrength = reinforcements.reduce((sum, unit) => sum + unit.count, 0);
+    // COMBINED DEFENSE: All reinforcements + Castle fight as one force
+    const reinforcementStrength = allReinforcements.reduce((sum, reinforcement) => sum + reinforcement.unit.count, 0);
     const castleStrength = tile.castle.unitCount;
     const combinedDefense = reinforcementStrength + castleStrength;
     const attackerStrength = attackers.reduce((sum, unit) => sum + unit.count, 0);
     
     console.log('');
-    console.log(`⚔️ BATTLE STRENGTH CALCULATION:`);
-    console.log(`   Reinforcements: ${reinforcementStrength} units`);
-    console.log(`   Castle garrison: ${castleStrength} units`);
-    console.log(`   → Combined Defense: ${reinforcementStrength} + ${castleStrength} = ${combinedDefense} units`);
-    console.log(`   → Total Attackers: ${attackerStrength} units`);
+    console.log(`⚔️ DETAILED STRENGTH BREAKDOWN:`);
+    console.log(`   Defending Forces (Faction ${castleFaction}):`);
+    console.log(`     Mobile reinforcements: ${reinforcementStrength} units`);
+    allReinforcements.forEach((reinforcement, i) => {
+      const movingStatus = reinforcement.unit.isMoving ? '(moving)' : '(stationary)';
+      console.log(`       Group ${i+1}: ${reinforcement.unit.count} units from ${reinforcement.location} ${movingStatus}`);
+    });
+    console.log(`     Castle garrison: ${castleStrength} units`);
+    console.log(`     → Total Defense: ${reinforcementStrength} + ${castleStrength} = ${combinedDefense} units`);
+    
+    console.log(`   Attacking Forces:`);
+    const attackersByFaction = {};
+    attackers.forEach(unit => {
+      if (!attackersByFaction[unit.factionId]) {
+        attackersByFaction[unit.factionId] = 0;
+      }
+      attackersByFaction[unit.factionId] += unit.count;
+    });
+    Object.entries(attackersByFaction).forEach(([factionId, count]) => {
+      console.log(`     Faction ${factionId}: ${count} units`);
+    });
+    console.log(`     → Total Attackers: ${attackerStrength} units`);
+    
     console.log('');
     console.log(`🎲 COMBAT RESOLUTION: ${combinedDefense} vs ${attackerStrength}`);
     
@@ -133,9 +222,12 @@ export class CombatSystem {
       console.log(`   Casualties: ${combinedDefense} defenders eliminated`);
       console.log(`   Survivors: ${survivingAttackers} attackers`);
       
-      // Remove all defenders (reinforcements)
-      console.log(`🧹 Removing all defender reinforcements from tile`);
-      tile.units = tile.units.filter(unit => unit.factionId !== castleFaction);
+      // Remove all defenders (reinforcements from all tiles)
+      console.log(`🧹 Removing all defender reinforcements from castle area`);
+      allReinforcements.forEach(reinforcement => {
+        console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
+        reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+      });
       
       // Determine winning attacker faction (in case of multiple)
       let winningAttackerFaction = attackers[0].factionId;
@@ -205,8 +297,11 @@ export class CombatSystem {
         console.log(`   → ${castleLosses} castle casualties`);
         console.log(`   → ${castleSurvivors} castle survivors`);
         
-        // Remove all reinforcements
-        tile.units = tile.units.filter(unit => unit.factionId !== castleFaction);
+        // Remove all reinforcements from all tiles
+        allReinforcements.forEach(reinforcement => {
+          console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
+          reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+        });
         
         // Update castle with survivors
         tile.castle.unitCount = Math.max(0, castleSurvivors);
@@ -223,8 +318,12 @@ export class CombatSystem {
         console.log(`   → ${reinforcementSurvivors} reinforcement survivors`);
         console.log(`   → Castle untouched (${castleStrength} units)`);
         
-        // Update reinforcements
-        tile.units = tile.units.filter(unit => unit.factionId !== castleFaction);
+        // Update reinforcements - remove all then add survivors to castle tile
+        allReinforcements.forEach(reinforcement => {
+          console.log(`     Removing ${reinforcement.unit.count} units from ${reinforcement.location}`);
+          reinforcement.tile.units = reinforcement.tile.units.filter(unit => unit.factionId !== castleFaction);
+        });
+        
         if (reinforcementSurvivors > 0) {
           tile.addUnit({
             factionId: castleFaction,
@@ -245,22 +344,36 @@ export class CombatSystem {
   }
 
   static resolveRegularCombat(tile, factions) {
-    console.log('⚔️ REGULAR COMBAT!');
+    console.log('');
+    console.log('⚔️ REGULAR COMBAT ANALYSIS:');
+    console.log('-'.repeat(50));
+    
     const combatResults = [];
 
     // Calculate total strength per faction (including castle units)
     const factionStrengths = {};
+    console.log(`📋 DETAILED FORCE BREAKDOWN:`);
     factions.forEach((factionId) => {
-      let strength = tile.getTotalUnitsForFaction(factionId);
+      let mobileStrength = tile.getTotalUnitsForFaction(factionId);
+      let castleStrength = 0;
       
       // Add castle units to the strength calculation
       if (tile.castle && tile.castle.factionId === factionId) {
-        strength += tile.castle.unitCount;
+        castleStrength = tile.castle.unitCount;
       }
       
-      factionStrengths[factionId] = strength;
+      const totalStrength = mobileStrength + castleStrength;
+      factionStrengths[factionId] = totalStrength;
+      
+      console.log(`   Faction ${factionId}:`);
+      console.log(`     Mobile units: ${mobileStrength}`);
+      console.log(`     Castle units: ${castleStrength}`);
+      console.log(`     → Total strength: ${totalStrength}`);
     });
 
+    console.log('');
+    console.log(`⚔️ BATTLE STRENGTH CALCULATION:`);
+    
     // Find the winning faction (highest unit count)
     let winningFaction = factions[0];
     let maxStrength = factionStrengths[winningFaction];
@@ -278,7 +391,14 @@ export class CombatSystem {
       .reduce((sum, f) => sum + factionStrengths[f], 0);
 
     const survivors = maxStrength - totalEnemyStrength;
+    
+    console.log(`   Winning faction: ${winningFaction} with ${maxStrength} total strength`);
+    console.log(`   Total enemy strength: ${totalEnemyStrength}`);
+    console.log(`   → Combat result: ${maxStrength} vs ${totalEnemyStrength} = ${survivors} survivors`);
 
+    console.log('');
+    console.log(`📊 COMBAT RESOLUTION:`);
+    
     // Handle mutual destruction case (equal forces)
     if (survivors <= 0) {
       console.log('💀 MUTUAL DESTRUCTION! All forces eliminated.');
@@ -292,6 +412,7 @@ export class CombatSystem {
         });
       });
     } else {
+      console.log(`✅ VICTORY! Faction ${winningFaction} wins with ${survivors} survivors`);
       // Record combat results - normal victory
       factions.forEach((factionId) => {
         combatResults.push({
@@ -303,15 +424,22 @@ export class CombatSystem {
       });
     }
 
+    console.log('');
+    console.log(`🏰 POST-COMBAT CASTLE HANDLING:`);
+    
     // Handle castle ownership change if castle exists
     if (survivors > 0) {
       // Normal victory - handle castle ownership
       if (tile.castle && tile.castle.factionId !== winningFaction) {
-        console.log(`🏰 CASTLE CONQUERED! Castle changed from faction ${tile.castle.factionId} to faction ${winningFaction}`);
+        console.log(`🏰 CASTLE CONQUERED!`);
+        console.log(`   Previous owner: Faction ${tile.castle.factionId} with ${tile.castle.unitCount} units`);
+        console.log(`   New owner: Faction ${winningFaction} with ${survivors} units`);
         tile.castle.factionId = winningFaction;
         tile.castle.unitCount = survivors;
       } else if (tile.castle && tile.castle.factionId === winningFaction) {
         // Castle defended successfully, update unit count
+        console.log(`🛡️ CASTLE DEFENDED SUCCESSFULLY!`);
+        console.log(`   Faction ${winningFaction} retains castle with ${survivors} units`);
         tile.castle.unitCount = survivors;
       }
     } else if (tile.castle) {
@@ -321,11 +449,16 @@ export class CombatSystem {
       tile.castle.unitCount = Math.max(1, tile.castle.unitCount - Math.abs(survivors));
     }
 
+    console.log('');
+    console.log(`🧹 FINAL TILE CLEANUP:`);
+    console.log(`   Removing all mobile units from tile`);
+    
     // Remove all units from tile
     tile.units = [];
 
     // Add surviving units to tile only if there are survivors and they're not garrisoned in castle
     if (survivors > 0 && (!tile.castle || tile.castle.factionId !== winningFaction)) {
+      console.log(`   Adding ${survivors} surviving mobile units to tile`);
       const survivingUnit = {
         factionId: winningFaction,
         count: survivors,
@@ -334,6 +467,8 @@ export class CombatSystem {
         isMoving: false,
       };
       tile.addUnit(survivingUnit);
+    } else if (survivors > 0 && tile.castle && tile.castle.factionId === winningFaction) {
+      console.log(`   All survivors garrisoned in castle - no mobile units remain on tile`);
     }
 
     return combatResults;
