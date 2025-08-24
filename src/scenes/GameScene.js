@@ -123,8 +123,8 @@ export class GameScene extends Phaser.Scene {
         let success = false;
         
         if (this.selectedCastle) {
-          // Moving from castle - send half the units, keep half as defenders
-          const unitCount = Math.floor(this.selectedCastle.unitCount / 2) || 1;
+          // Moving from castle - send all units
+          const unitCount = Math.floor(this.selectedCastle.unitCount / 1) || 1;
           success = this.movementSystem.moveUnits(
             this.map,
             this.selectedCastle.x,
