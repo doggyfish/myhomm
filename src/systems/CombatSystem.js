@@ -277,32 +277,54 @@ export class CombatSystem {
       .filter((f) => f !== winningFaction)
       .reduce((sum, f) => sum + factionStrengths[f], 0);
 
-    const survivors = Math.max(1, maxStrength - totalEnemyStrength);
+    const survivors = maxStrength - totalEnemyStrength;
 
-    // Record combat results
-    factions.forEach((factionId) => {
-      combatResults.push({
-        factionId,
-        initialCount: factionStrengths[factionId],
-        survived: factionId === winningFaction,
-        finalCount: factionId === winningFaction ? survivors : 0,
+    // Handle mutual destruction case (equal forces)
+    if (survivors <= 0) {
+      console.log('💀 MUTUAL DESTRUCTION! All forces eliminated.');
+      // Record combat results - everyone dies
+      factions.forEach((factionId) => {
+        combatResults.push({
+          factionId,
+          initialCount: factionStrengths[factionId],
+          survived: false,
+          finalCount: 0,
+        });
       });
-    });
+    } else {
+      // Record combat results - normal victory
+      factions.forEach((factionId) => {
+        combatResults.push({
+          factionId,
+          initialCount: factionStrengths[factionId],
+          survived: factionId === winningFaction,
+          finalCount: factionId === winningFaction ? survivors : 0,
+        });
+      });
+    }
 
     // Handle castle ownership change if castle exists
-    if (tile.castle && tile.castle.factionId !== winningFaction) {
-      console.log(`🏰 CASTLE CONQUERED! Castle changed from faction ${tile.castle.factionId} to faction ${winningFaction}`);
-      tile.castle.factionId = winningFaction;
-      tile.castle.unitCount = Math.min(survivors, tile.castle.unitCount);
-    } else if (tile.castle && tile.castle.factionId === winningFaction) {
-      // Castle defended successfully, update unit count
-      tile.castle.unitCount = Math.max(1, survivors);
+    if (survivors > 0) {
+      // Normal victory - handle castle ownership
+      if (tile.castle && tile.castle.factionId !== winningFaction) {
+        console.log(`🏰 CASTLE CONQUERED! Castle changed from faction ${tile.castle.factionId} to faction ${winningFaction}`);
+        tile.castle.factionId = winningFaction;
+        tile.castle.unitCount = Math.min(survivors, tile.castle.unitCount);
+      } else if (tile.castle && tile.castle.factionId === winningFaction) {
+        // Castle defended successfully, update unit count
+        tile.castle.unitCount = survivors;
+      }
+    } else if (tile.castle) {
+      // Mutual destruction - castle becomes neutral or empty
+      console.log(`🏰 CASTLE ABANDONED! All attacking and defending forces eliminated.`);
+      // Keep castle ownership but reduce to minimum garrison
+      tile.castle.unitCount = Math.max(1, tile.castle.unitCount - Math.abs(survivors));
     }
 
     // Remove all units from tile
     tile.units = [];
 
-    // Don't add surviving units to tile if they're now in the castle
+    // Add surviving units to tile only if there are survivors and they're not garrisoned in castle
     if (survivors > 0 && (!tile.castle || tile.castle.factionId !== winningFaction)) {
       const survivingUnit = {
         factionId: winningFaction,

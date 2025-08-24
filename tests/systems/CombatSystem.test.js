@@ -69,6 +69,22 @@ describe('CombatSystem', () => {
       const remainingFactions = tile.getAllFactions();
       expect(remainingFactions).toEqual([0]);
     });
+
+    test('should handle mutual destruction when forces are equal', () => {
+      const tileType = GAME_CONFIG.TILE_TYPES[0];
+      const tile = new Tile(5, 5, tileType);
+      
+      // Equal forces should eliminate each other
+      tile.addUnit({ factionId: 0, count: 8 });
+      tile.addUnit({ factionId: 1, count: 8 });
+
+      CombatSystem.resolveCombat(tile);
+
+      // All units should be eliminated
+      expect(tile.units.length).toBe(0);
+      const remainingFactions = tile.getAllFactions();
+      expect(remainingFactions).toEqual([]);
+    });
   });
 
   describe('Story 4.3: Unit Merging and Visual Feedback', () => {
