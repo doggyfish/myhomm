@@ -400,6 +400,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   updateProduction() {
+    // Stop production if game is won
+    if (this.gameWon) {
+      return;
+    }
+
     // Update all castles
     for (let y = 0; y < GAME_CONFIG.DEFAULT_MAP_SIZE; y++) {
       for (let x = 0; x < GAME_CONFIG.DEFAULT_MAP_SIZE; x++) {

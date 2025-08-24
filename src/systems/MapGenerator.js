@@ -34,6 +34,9 @@ export class MapGenerator {
       map[pos.y][pos.x].setCastle(castle);
     });
 
+    // Ensure connectivity between all castle positions
+    MapGenerator.ensureCastleConnectivity(map, castlePositions);
+
     return map;
   }
 
@@ -50,5 +53,53 @@ export class MapGenerator {
 
     // Fallback to first tile type
     return GAME_CONFIG.TILE_TYPES[0];
+  }
+
+  static ensureCastleConnectivity(map, castlePositions) {
+    const passableTileType = GAME_CONFIG.TILE_TYPES.find((t) => t.passable);
+
+    // Create simple cross-pattern to ensure all castles are connected
+    // Create horizontal corridor in middle
+    const midY = Math.floor(map.length / 2);
+    for (let x = 1; x < map[0].length - 1; x++) {
+      map[midY][x].type = passableTileType;
+    }
+
+    // Create vertical corridor in middle  
+    const midX = Math.floor(map[0].length / 2);
+    for (let y = 1; y < map.length - 1; y++) {
+      map[y][midX].type = passableTileType;
+    }
+
+    // Create paths from each castle to the center corridors
+    castlePositions.forEach(pos => {
+      MapGenerator.createSimplePath(map, pos, { x: midX, y: midY }, passableTileType);
+    });
+
+    console.log('Created connectivity corridors to ensure all castles are reachable');
+  }
+
+  static createSimplePath(map, from, to, passableTileType) {
+    // Create L-shaped path (horizontal then vertical)
+    let currentX = from.x;
+    let currentY = from.y;
+
+    // Move horizontally first
+    const deltaX = to.x > from.x ? 1 : -1;
+    while (currentX !== to.x) {
+      currentX += deltaX;
+      if (currentX >= 0 && currentX < map[0].length && currentY >= 0 && currentY < map.length) {
+        map[currentY][currentX].type = passableTileType;
+      }
+    }
+
+    // Then move vertically
+    const deltaY = to.y > from.y ? 1 : -1;
+    while (currentY !== to.y) {
+      currentY += deltaY;
+      if (currentX >= 0 && currentX < map[0].length && currentY >= 0 && currentY < map.length) {
+        map[currentY][currentX].type = passableTileType;
+      }
+    }
   }
 }

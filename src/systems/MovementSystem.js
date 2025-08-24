@@ -83,43 +83,47 @@ export class MovementSystem {
           currentTileX >= 0 && currentTileX < GAME_CONFIG.DEFAULT_MAP_SIZE &&
           currentTileY >= 0 && currentTileY < GAME_CONFIG.DEFAULT_MAP_SIZE) {
         
-        // Unit entered a new tile - check for combat with existing units
+        // Unit entered a new tile - check for combat with existing units or enemy castle
         const currentTile = map[currentTileY][currentTileX];
-        if (currentTile.units.length > 0) {
-          // Check if there are enemy units on this tile
-          const enemyUnits = currentTile.units.filter(u => u.factionId !== unit.factionId);
-          if (enemyUnits.length > 0) {
+        const hasEnemyUnits = currentTile.units.some(u => u.factionId !== unit.factionId);
+        const hasEnemyCastle = currentTile.castle && currentTile.castle.factionId !== unit.factionId;
+        
+        if (hasEnemyUnits || hasEnemyCastle) {
+          if (hasEnemyCastle) {
+            console.log(`🏰 CASTLE ATTACK: ${faction.name} unit attacking ${currentTile.castle.factionId} castle at (${currentTileX}, ${currentTileY})!`);
+          }
+          if (hasEnemyUnits) {
             console.log(`🔥 MOVEMENT COMBAT: ${faction.name} unit passing through tile (${currentTileX}, ${currentTileY}) with enemy units!`);
+          }
+          
+          // Temporarily add moving unit to tile for combat resolution
+          const tempUnit = {
+            factionId: unit.factionId,
+            count: unit.count,
+            x: currentTileX,
+            y: currentTileY,
+            isMoving: true
+          };
+          currentTile.addUnit(tempUnit);
+          
+          // Resolve combat
+          CombatSystem.resolveCombat(currentTile);
+          
+          // Check if the moving unit survived combat
+          const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
+          if (survivingUnits.length === 0) {
+            // Unit was destroyed in combat - remove from moving units
+            console.log(`💀 ${faction.name} unit destroyed while passing through!`);
+            this.movingUnits.splice(index, 1);
+            return; // Skip further processing for this unit
+          } else {
+            // Update unit count if it survived with reduced numbers
+            const survivingUnit = survivingUnits[0];
+            unit.count = survivingUnit.count;
+            console.log(`✅ ${faction.name} unit survived with ${unit.count} units, continuing movement`);
             
-            // Temporarily add moving unit to tile for combat resolution
-            const tempUnit = {
-              factionId: unit.factionId,
-              count: unit.count,
-              x: currentTileX,
-              y: currentTileY,
-              isMoving: true
-            };
-            currentTile.addUnit(tempUnit);
-            
-            // Resolve combat
-            CombatSystem.resolveCombat(currentTile);
-            
-            // Check if the moving unit survived combat
-            const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
-            if (survivingUnits.length === 0) {
-              // Unit was destroyed in combat - remove from moving units
-              console.log(`💀 ${faction.name} unit destroyed while passing through!`);
-              this.movingUnits.splice(index, 1);
-              return; // Skip further processing for this unit
-            } else {
-              // Update unit count if it survived with reduced numbers
-              const survivingUnit = survivingUnits[0];
-              unit.count = survivingUnit.count;
-              console.log(`✅ ${faction.name} unit survived with ${unit.count} units, continuing movement`);
-              
-              // IMPORTANT: Remove ALL units of this faction from the tile since they're still moving
-              currentTile.units = currentTile.units.filter(u => u.factionId !== unit.factionId);
-            }
+            // IMPORTANT: Remove ALL units of this faction from the tile since they're still moving
+            currentTile.units = currentTile.units.filter(u => u.factionId !== unit.factionId);
           }
         }
       }
