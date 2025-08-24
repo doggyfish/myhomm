@@ -309,7 +309,7 @@ export class CombatSystem {
       if (tile.castle && tile.castle.factionId !== winningFaction) {
         console.log(`🏰 CASTLE CONQUERED! Castle changed from faction ${tile.castle.factionId} to faction ${winningFaction}`);
         tile.castle.factionId = winningFaction;
-        tile.castle.unitCount = Math.min(survivors, tile.castle.unitCount);
+        tile.castle.unitCount = survivors;
       } else if (tile.castle && tile.castle.factionId === winningFaction) {
         // Castle defended successfully, update unit count
         tile.castle.unitCount = survivors;
