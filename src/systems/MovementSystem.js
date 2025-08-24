@@ -111,11 +111,18 @@ export class MovementSystem {
           
           // Check if the moving unit survived combat
           const survivingUnits = currentTile.getUnitsForFaction(unit.factionId);
-          if (survivingUnits.length === 0) {
+          const conqueredCastle = currentTile.castle && currentTile.castle.factionId === unit.factionId;
+          
+          if (survivingUnits.length === 0 && !conqueredCastle) {
             // Unit was destroyed in combat - remove from moving units
             console.log(`💀 ${faction.name} unit destroyed while passing through!`);
             this.movingUnits.splice(index, 1);
             return; // Skip further processing for this unit
+          } else if (conqueredCastle) {
+            // Unit conquered the castle - they're now garrisoned, remove from moving units
+            console.log(`🏰 ${faction.name} unit conquered castle and is now garrisoned!`);
+            this.movingUnits.splice(index, 1);
+            return; // Unit has reached final destination (castle)
           } else {
             // Update unit count if it survived with reduced numbers
             const survivingUnit = survivingUnits[0];
