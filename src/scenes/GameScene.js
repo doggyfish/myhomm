@@ -108,7 +108,8 @@ export class GameScene extends Phaser.Scene {
       // First click - select castle or unit group
       if (clickedTile.castle) {
         this.selectedCastle = clickedTile.castle;
-        console.log(`Selected castle at (${tileX}, ${tileY}) with ${this.selectedCastle.unitCount} units`);
+        const castleFaction = GAME_CONFIG.FACTIONS.find(f => f.id === this.selectedCastle.factionId);
+        console.log(`Selected ${castleFaction.name} castle at (${tileX}, ${tileY}) with ${this.selectedCastle.unitCount} units`);
       } else if (clickedTile.units.length > 0) {
         // Select unit group on this tile
         this.selectedUnits = clickedTile.units;
@@ -135,7 +136,8 @@ export class GameScene extends Phaser.Scene {
           );
           
           if (success) {
-            console.log(`Moved ${unitCount} units from castle (${this.selectedCastle.x}, ${this.selectedCastle.y}) to (${tileX}, ${tileY})`);
+            const castleFaction = GAME_CONFIG.FACTIONS.find(f => f.id === this.selectedCastle.factionId);
+            console.log(`Moved ${unitCount} ${castleFaction.name} units from castle (${this.selectedCastle.x}, ${this.selectedCastle.y}) to (${tileX}, ${tileY})`);
           }
         } else if (this.selectedUnits) {
           // Moving unit group
@@ -150,7 +152,8 @@ export class GameScene extends Phaser.Scene {
           );
           
           if (success) {
-            console.log(`Moved ${totalUnits} units from (${this.selectedTile.x}, ${this.selectedTile.y}) to (${tileX}, ${tileY})`);
+            const unitFaction = GAME_CONFIG.FACTIONS.find(f => f.id === this.selectedUnits[0].factionId);
+            console.log(`Moved ${totalUnits} ${unitFaction.name} units from (${this.selectedTile.x}, ${this.selectedTile.y}) to (${tileX}, ${tileY})`);
           }
         }
 

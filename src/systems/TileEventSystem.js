@@ -1,3 +1,5 @@
+import { GAME_CONFIG } from '../config/GameConfig.js';
+
 export class TileEventSystem {
   constructor() {
     this.tileOccupancy = new Map(); // Map of "x,y" -> Set of unit IDs
@@ -13,8 +15,8 @@ export class TileEventSystem {
   // Get current tile coordinates for a unit
   getCurrentTile(unit) {
     return {
-      x: Math.floor(unit.x / 64), // TILE_SIZE
-      y: Math.floor(unit.y / 64)
+      x: Math.floor(unit.x / GAME_CONFIG.TILE_SIZE),
+      y: Math.floor(unit.y / GAME_CONFIG.TILE_SIZE)
     };
   }
 

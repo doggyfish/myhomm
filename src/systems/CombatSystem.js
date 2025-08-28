@@ -1,4 +1,16 @@
+import { GAME_CONFIG } from '../config/GameConfig.js';
+
 export class CombatSystem {
+  // Helper function to get faction name by ID
+  static getFactionName(factionId) {
+    const faction = GAME_CONFIG.FACTIONS.find(f => f.id === factionId);
+    return faction ? faction.name : `Faction ${factionId}`;
+  }
+
+  // Helper function to format faction list for logging
+  static formatFactionList(factionIds) {
+    return factionIds.map(id => `${this.getFactionName(id)} (${id})`).join(', ');
+  }
   // Helper function to get all neighboring tiles (including diagonal)
   static getSurroundingTiles(tile, map) {
     const surroundingTiles = [];
@@ -46,7 +58,7 @@ export class CombatSystem {
       console.log(`     Unit ${index}: Faction ${movingUnit.factionId}, ${movingUnit.count} units at pixel (${movingUnit.x}, ${movingUnit.y})`);
       if (movingUnit.factionId === castleFaction) {
         // Calculate distance from moving unit's current position to castle
-        const TILE_SIZE = 64; // TODO: Import from GAME_CONFIG
+        const TILE_SIZE = GAME_CONFIG.TILE_SIZE;
         const currentTileX = Math.floor(movingUnit.x / TILE_SIZE);
         const currentTileY = Math.floor(movingUnit.y / TILE_SIZE);
         const distanceFromCastle = Math.abs(currentTileX - castleTile.x) + Math.abs(currentTileY - castleTile.y);
@@ -86,19 +98,19 @@ export class CombatSystem {
 
     // Detailed pre-combat state
     console.log(`📊 PRE-COMBAT STATE:`);
-    console.log(`   Factions involved: ${factions.length} →`, factions.map(f => `Faction ${f}`));
+    console.log(`   Factions involved: ${factions.length} → [${this.formatFactionList(factions)}]`);
     
     if (tile.units.length > 0) {
       console.log(`   Mobile units on tile:`);
       tile.units.forEach(unit => {
-        console.log(`     • Faction ${unit.factionId}: ${unit.count} units ${unit.isMoving ? '(moving)' : '(stationary)'}`);
+        console.log(`     • ${this.getFactionName(unit.factionId)} (${unit.factionId}): ${unit.count} units ${unit.isMoving ? '(moving)' : '(stationary)'}`);
       });
     } else {
       console.log(`   Mobile units on tile: None`);
     }
     
     if (tile.castle) {
-      console.log(`   Castle: Faction ${tile.castle.factionId} with ${tile.castle.unitCount} units`);
+      console.log(`   Castle: ${this.getFactionName(tile.castle.factionId)} (${tile.castle.factionId}) with ${tile.castle.unitCount} units`);
     } else {
       console.log(`   Castle: None`);
     }
@@ -218,7 +230,7 @@ export class CombatSystem {
     
     console.log('');
     console.log(`⚔️ DETAILED STRENGTH BREAKDOWN:`);
-    console.log(`   Defending Forces (Faction ${castleFaction}):`);
+    console.log(`   Defending Forces (${this.getFactionName(castleFaction)} - ${castleFaction}):`);
     console.log(`     Mobile reinforcements: ${reinforcementStrength} units`);
     allReinforcements.forEach((reinforcement, i) => {
       const movingStatus = reinforcement.unit.isMoving ? '(moving)' : '(stationary)';
@@ -236,7 +248,7 @@ export class CombatSystem {
       attackersByFaction[unit.factionId] += unit.count;
     });
     Object.entries(attackersByFaction).forEach(([factionId, count]) => {
-      console.log(`     Faction ${factionId}: ${count} units`);
+      console.log(`     ${this.getFactionName(factionId)} (${factionId}): ${count} units`);
     });
     console.log(`     → Total Attackers: ${attackerStrength} units`);
     
@@ -278,13 +290,13 @@ export class CombatSystem {
         
         let maxCount = 0;
         Object.entries(attackerFactions).forEach(([factionId, count]) => {
-          console.log(`     Faction ${factionId}: ${count} units`);
+          console.log(`     ${this.getFactionName(factionId)} (${factionId}): ${count} units`);
           if (count > maxCount) {
             maxCount = count;
             winningAttackerFaction = parseInt(factionId);
           }
         });
-        console.log(`     → Faction ${winningAttackerFaction} takes castle (largest force)`);
+        console.log(`     → ${this.getFactionName(winningAttackerFaction)} (${winningAttackerFaction}) takes castle (largest force)`);
       }
       
       // Castle changes ownership
@@ -297,8 +309,8 @@ export class CombatSystem {
       tile.units = [];
       
       console.log(`🏰 CASTLE CONQUERED!`);
-      console.log(`   Previous: Faction ${oldCastleFaction} with ${oldCastleUnits} units`);
-      console.log(`   New: Faction ${winningAttackerFaction} with ${survivingAttackers} units`);
+      console.log(`   Previous: ${this.getFactionName(oldCastleFaction)} (${oldCastleFaction}) with ${oldCastleUnits} units`);
+      console.log(`   New: ${this.getFactionName(winningAttackerFaction)} (${winningAttackerFaction}) with ${survivingAttackers} units`);
       
     } else {
       // Defenders win
@@ -411,7 +423,7 @@ export class CombatSystem {
       const totalStrength = mobileStrength + castleStrength;
       factionStrengths[factionId] = totalStrength;
       
-      console.log(`   Faction ${factionId}:`);
+      console.log(`   ${this.getFactionName(factionId)} (${factionId}):`);
       console.log(`     Mobile units: ${mobileStrength}`);
       console.log(`     Castle units: ${castleStrength}`);
       console.log(`     → Total strength: ${totalStrength}`);
@@ -438,7 +450,7 @@ export class CombatSystem {
 
     const survivors = maxStrength - totalEnemyStrength;
     
-    console.log(`   Winning faction: ${winningFaction} with ${maxStrength} total strength`);
+    console.log(`   Winning faction: ${this.getFactionName(winningFaction)} (${winningFaction}) with ${maxStrength} total strength`);
     console.log(`   Total enemy strength: ${totalEnemyStrength}`);
     console.log(`   → Combat result: ${maxStrength} vs ${totalEnemyStrength} = ${survivors} survivors`);
 
@@ -458,7 +470,7 @@ export class CombatSystem {
         });
       });
     } else {
-      console.log(`✅ VICTORY! Faction ${winningFaction} wins with ${survivors} survivors`);
+      console.log(`✅ VICTORY! ${this.getFactionName(winningFaction)} (${winningFaction}) wins with ${survivors} survivors`);
       // Record combat results - normal victory
       factions.forEach((factionId) => {
         combatResults.push({
@@ -478,14 +490,14 @@ export class CombatSystem {
       // Normal victory - handle castle ownership
       if (tile.castle && tile.castle.factionId !== winningFaction) {
         console.log(`🏰 CASTLE CONQUERED!`);
-        console.log(`   Previous owner: Faction ${tile.castle.factionId} with ${tile.castle.unitCount} units`);
-        console.log(`   New owner: Faction ${winningFaction} with ${survivors} units`);
+        console.log(`   Previous owner: ${this.getFactionName(tile.castle.factionId)} (${tile.castle.factionId}) with ${tile.castle.unitCount} units`);
+        console.log(`   New owner: ${this.getFactionName(winningFaction)} (${winningFaction}) with ${survivors} units`);
         tile.castle.factionId = winningFaction;
         tile.castle.unitCount = survivors;
       } else if (tile.castle && tile.castle.factionId === winningFaction) {
         // Castle defended successfully, update unit count
         console.log(`🛡️ CASTLE DEFENDED SUCCESSFULLY!`);
-        console.log(`   Faction ${winningFaction} retains castle with ${survivors} units`);
+        console.log(`   ${this.getFactionName(winningFaction)} (${winningFaction}) retains castle with ${survivors} units`);
         tile.castle.unitCount = survivors;
       }
     } else if (tile.castle) {
