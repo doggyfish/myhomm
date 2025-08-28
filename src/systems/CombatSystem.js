@@ -41,15 +41,16 @@ export class CombatSystem {
     });
     
     // Check for nearby moving units that could return to reinforce
-    movingUnits.forEach(movingUnit => {
+    console.log(`   Checking ${movingUnits.length} moving units for potential reinforcements...`);
+    movingUnits.forEach((movingUnit, index) => {
+      console.log(`     Unit ${index}: Faction ${movingUnit.factionId}, ${movingUnit.count} units at pixel (${movingUnit.x}, ${movingUnit.y})`);
       if (movingUnit.factionId === castleFaction) {
         // Calculate distance from moving unit's current position to castle
         const TILE_SIZE = 64; // TODO: Import from GAME_CONFIG
         const currentTileX = Math.floor(movingUnit.x / TILE_SIZE);
         const currentTileY = Math.floor(movingUnit.y / TILE_SIZE);
         const distanceFromCastle = Math.abs(currentTileX - castleTile.x) + Math.abs(currentTileY - castleTile.y);
-        
-        console.log(`   Checking moving unit: ${movingUnit.count} units at (${currentTileX}, ${currentTileY}), distance ${distanceFromCastle} from castle (${castleTile.x}, ${castleTile.y})`);
+        console.log(`       → Tile (${currentTileX}, ${currentTileY}), distance ${distanceFromCastle} from castle (${castleTile.x}, ${castleTile.y})`);
         
         // If moving unit is within 1 tile of the castle, they can reinforce
         if (distanceFromCastle <= 1) {
